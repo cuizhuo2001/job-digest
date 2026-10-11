@@ -22,6 +22,7 @@ sys.path.insert(0, HERE)
 
 import jdlib  # noqa: E402
 import pool  # noqa: E402
+import refresh  # noqa: E402
 from jdlib import log  # noqa: E402
 
 WD = "一二三四五六日"
@@ -72,7 +73,7 @@ def region_block(L, flag, label, part):
     L.append("")
 
 
-def build_message(d, cfg, now, dry):
+def build_message(d, cfg, now, dry, warn=None):
     st = d["stats"]
     n_hk = len(d["hk"]["today"]) if d.get("hk") else 0
     n_cn = len(d["cn"]["today"]) if d.get("cn") else 0
@@ -101,6 +102,17 @@ def build_message(d, cfg, now, dry):
             L.append("    …另有 %d 条（见清单 md）" % (len(over) - 6))
         L.append("")
 
+    # 关注公司今天新挂出来的（watch_hk 第一次看到的岗位），不管排没排进今日名单都提一句
+    fresh = [r for key in ("hk", "cn") if d.get(key) for r in d[key]["alive_rows"]
+             if r.get("first_seen") == now.date().isoformat() and str(r.get("id", "")).startswith("w-")]
+    if fresh:
+        L.append("━━━ 🆕 关注公司新挂出 %d 个岗位 ━━━" % len(fresh))
+        for r in fresh[:6]:
+            L.append(job_line(r))
+        if len(fresh) > 6:
+            L.append("    …另有 %d 个（见清单 md）" % (len(fresh) - 6))
+        L.append("")
+
     rem = active_reminders(cfg, now)
     if rem:
         L.append("━━━ 📌 手写提醒 ━━━")
@@ -108,6 +120,8 @@ def build_message(d, cfg, now, dry):
             L.append("• [%s] %s" % (dd.strftime("%m-%d"), r.get("text", "")))
         L.append("")
 
+    if warn:
+        L.append("⚠️ 数据源刷新失败（用的是上次的数据）：%s" % "；".join(warn[:3]))
     L.append("📎 完整链接：%s" % cfg.get("out_md", ""))
 
     for flag, path in (("🇭🇰", cfg.get("pool_path_hk")),
@@ -196,11 +210,16 @@ def push_text(msg, cfg, dry):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true", help="只打印不发")
+    ap.add_argument("--no-refresh", action="store_true", help="不刷新数据源，直接用现有池子")
     args = ap.parse_args()
 
     now = datetime.datetime.now()
     cfg = pool.load_config()
     log("=== 开始：%s ===" % now.strftime("%Y-%m-%d %H:%M"))
+
+    warn = []
+    if not args.no_refresh:
+        warn = refresh.refresh(cfg)[1]
 
     try:
         d = pool.select(cfg, now.date())
@@ -208,8 +227,9 @@ def main():
         # 「读不到」≠「没有可投的」：要推告警，别让任务计划天天显示成功
         log("✗ 读岗位池失败：%s" % e)
         try:
-            push_text("⚠️ 投递简报拉不到岗位池 · %s\n%s\n\n池子文件：%s"
-                      % (now.strftime("%m-%d %H:%M"), e, cfg.get("pool_path")), args.dry)
+            push_text("⚠️ 投递简报拉不到岗位池 · %s\n%s\n\n池子文件：%s%s"
+                      % (now.strftime("%m-%d %H:%M"), e, cfg.get("pool_path"),
+                         ("\n刷新失败：" + "；".join(warn)) if warn else ""), cfg, args.dry)
             return 0
         except Exception as e2:
             log("告警也推不出去：%s" % e2)
@@ -228,7 +248,7 @@ def main():
         except Exception as e:
             log("! 写 md 失败（不影响推送）：%s" % e)
 
-    msg = build_message(d, cfg, now, args.dry)
+    msg = build_message(d, cfg, now, args.dry, warn)
     try:
         push_text(msg, cfg, args.dry)
     except Exception as e:

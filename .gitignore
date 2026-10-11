@@ -17,3 +17,6 @@ cover_letters/
 *.tmp
 __pycache__/
 *.pyc
+
+# 自动导入 / 查岗 / 手动补录的岗位数据
+data/

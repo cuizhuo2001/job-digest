@@ -6,6 +6,7 @@
 
 ## 它做什么
 
+- **岗位数据自动更新**：大陆岗位每天从公开岗位库导入（5000+ 条 2027 秋招）；香港岗位每天去 17 家关注公司的招聘系统自动查（带岗位直链，新挂出来的会单独提醒）；自己看到的岗位一条命令补录
 - **每日简报**：按截止日排序（3 天内截止 → 7 天内截止 → 滚动招聘），香港、大陆各推 N 家；同时写一份带完整链接的 `今日投递清单.md`
 - **按方向筛**：内置 21 个商科方向（管培、投行、风控合规、审计税务、咨询、市场品牌、人力资源、供应链……），选几个想投的就行，还能给某个方向固定每天的名额
 - **投递面板**（Windows）：常驻屏幕顶边，鼠标碰一下就滑下来
@@ -19,7 +20,7 @@
 
 ## 它不做什么
 
-- **不抓岗位**。岗位池是你自己维护的 CSV（官网、学校就业网、LinkedIn 搜到的都往里填），脚本只读不写，新开的岗位不会自己进来。
+- **不是全网岗位**。数据来自一个公开岗位库 + 17 家关注公司 + 你手动补录的，没覆盖到的公司要自己加（见「岗位数据从哪来」）。
 - **不替你投**。它只负责告诉你今天投什么，并把材料准备好；网申表还是你自己填。
 - **链接体检只认 404/410**。如果链接只指到校招首页、而不是具体岗位，它查不出来，所以录入时请直接填岗位详情页。
 
@@ -28,15 +29,48 @@
 需要 Python 3.9+。每日简报只用标准库，面板只能在 Windows 上用。
 
 ```bash
-git clone <仓库地址> job-digest
+git clone https://github.com/cuizhuo2001/job-digest.git
 cd job-digest
 copy config.example.json config.json
 copy profile.example.json profile.json
-python tools/pool.py          # 看看示例池子筛出来什么
-python tools/push.py --dry    # 预览今天的简报（只打印，不推送）
+python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟），然后预览今天的简报（只打印，不推送）
 ```
 
-默认配置下，大陆池用的是虚构示例（`examples/pool_cn.example.csv`，故意放了几条会被规则剔除的岗位，可以对照着看筛选效果），香港池直接用仓库自带的**真实名单**（见下一节）。确认能跑以后，把 `config.json` 里的 `pool_path` 换成你自己的 CSV。
+打开 `config.json`，把 `directions` 改成你想投的方向，`allowed_cities` 改成你想去的城市，再跑一次看看。只想离线试试筛选效果，可以把 `pool_path` 换成 `examples/pool_cn.example.csv`（虚构示例，故意放了几条会被规则剔除的岗位）。
+
+## 岗位数据从哪来
+
+三个来源，在 `config.json` 的 `pool_path`（大陆）/ `pool_path_hk`（香港）里按顺序列出，同一个岗位出现在多个来源时留前面那条：
+
+| 来源 | 文件 | 怎么更新 |
+|---|---|---|
+| 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
+| 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 17 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
+| 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 30 条（见下一节），不自动更新 |
+| ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py` |
+
+两个自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。
+
+**大陆岗位库的局限**：上游维护者手动同步，不是每天更新（简报会显示数据日期，超过 5 天会提醒）；一条记录常是一家公司的整份校招公告，链接多是公司校招首页，投之前要在官网里找具体岗位。
+
+**关注公司**：支持三种招聘系统 —— Workday（`*.myworkdayjobs.com`）、Oracle（`*.oraclecloud.com`）、北森（`*.zhiye.com`）。默认 17 家：德银、大华、三菱日联、花旗、摩根士丹利、贝莱德、道富、景顺、宏利、友邦、永明、万事达、耐克、摩根大通、施罗德、中金、中信建投国际。想加公司，打开它的招聘官网看网址属于哪种，照格式往 `watchlist_hk.json` 里加一条，然后：
+
+```bash
+python tools/watch_hk.py --only 公司名 --dry    # 只查这一家，看能不能查到
+```
+
+关注公司**第一次**挂出来的岗位，简报里会单独列在「🆕 关注公司新挂出 N 个岗位」。
+
+**手动补录**（官网、群里、就业网看到的岗位）：
+
+```bash
+python tools/add_job.py                         # 交互式，一项项问
+python tools/add_job.py --hk --company "示例银行" --title "Graduate Programme 2027" --url https://... --deadline 2026-11-30
+python tools/add_job.py --cn --company "示例证券" --title "风控管培生" --city 深圳
+python tools/add_job.py --list                  # 看加过的；--remove <id> 删掉
+```
+
+手动补录的岗位是你自己挑的，不受方向、城市、排除词这些规则限制，默认匹配分 90（排在滚动招聘前面）。
 
 ## 自带的香港 2027 校招名单
 
@@ -152,10 +186,15 @@ config.example.json   规则：池子在哪、每天几家、排除哪些词、�
 profile.example.json  个人资料：姓名邮箱、简历路径、速查卡、求职信模板
 templates/            求职信模板、填表速查卡示例
 presets/商科.json     21 个商科方向的关键词
+watchlist_hk.json     香港关注公司清单
 examples/             示例岗位池 + 香港 2027 校招名单
 tools/
   pool.py             读池子 → 过滤 → 排序（数据层）
-  push.py             每日简报
+  push.py             每日简报（推送前先调 refresh.py）
+  refresh.py          刷新数据源
+  import_cn.py        大陆岗位库导入
+  watch_hk.py         香港关注公司查岗
+  add_job.py          手动补录
   apply_popup.py/.html  投递面板（Windows）
   check_links.py      死链体检
   register_task.py    注册 Windows 任务计划
@@ -165,7 +204,7 @@ tools/
 SKILL.md              给 Claude Code 当 skill 用的说明
 ```
 
-**不会进 git 的**（见 `.gitignore`）：`config.json`、`profile.json`、`secrets.json`、`state.json`（已投、稍后、屏蔽、死链的记录）、`history.jsonl`（每次操作的日志）、`push.log`。
+**不会进 git 的**（见 `.gitignore`）：`data/`（自动导入、查岗、手动补录的岗位）、`config.json`、`profile.json`、`secrets.json`、`state.json`（已投、稍后、屏蔽、死链的记录）、`history.jsonl`（每次操作的日志）、`push.log`。
 
 ## 和 Claude Code 一起用
 
@@ -174,7 +213,7 @@ SKILL.md              给 Claude Code 当 skill 用的说明
 ## 已知局限
 
 - 面板和定时任务只支持 Windows；每日简报本身跨平台，在 macOS / Linux 上可以用 cron 跑 `python tools/push.py`
-- 池子要你自己补，简报会提醒“快照已 N 天没更新”
+- 大陆岗位库更新频率取决于上游；香港自动查岗只覆盖 `watchlist_hk.json` 里的公司，而且只认 Workday / Oracle / 北森三种招聘系统（hotjob、Moka、SuccessFactors 等还没适配）
 - 「生成 PDF」要装 Microsoft Word（通过 COM 转换）
 
 ## License

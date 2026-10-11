@@ -34,6 +34,9 @@ description: 每日投递简报 + 投递面板 —— 从岗位池排出「今�
 python tools/pool.py                  # 看筛选排序结果（调规则用）
 python tools/push.py --dry            # 预览简报，不推
 python tools/push.py                  # 真推
+python tools/refresh.py --force       # 立刻刷新数据源（大陆岗位库导入 + 香港关注公司查岗）
+python tools/watch_hk.py --only 花旗 --dry   # 只查一家关注公司，调试新加的公司用
+python tools/add_job.py --hk --company X --title Y --url U --deadline YYYY-MM-DD   # 手动补录；--list / --remove <id>
 python tools/check_links.py           # 体检今天要推的链接；--all 查全部；--unmark <id> 撤销
 python tools/register_task.py         # 注册 / 刷新任务计划；--show 看状态；--run 立刻推一次
 pythonw tools/apply_popup.py          # 起面板；--nudge = 已经在跑就让它滑下来
@@ -45,4 +48,6 @@ pythonw tools/apply_popup.py          # 起面板；--nudge = 已经在跑就让
 - **Telegram 报 URLError / 10060**：多半是网络不通，在 `secrets.json` 配 `telegram_proxy`。
 - **飞书报 19021**：签名不对或本机时间偏差超过 1 小时；报 19024：关键词不匹配（关键词填「投递」）。
 - **面板起不来**：同一时间只能开一个面板。先看有没有残留的 python / pythonw 进程在跑 `apply_popup.py`。
-- **池子太旧**：脚本不联网，新岗位要用户自己补进 CSV；简报底部会显示快照日期。
+- **池子太旧**：看 `push.log` 里 `↻` 开头的刷新记录；大陆岗位库的数据日期在 `data/cn_import.csv.date`，上游不更新就只能等或手动补录。
+- **用户贴了一个岗位链接说「加进去」**：先打开链接确认公司、岗位名、截止日、工作地，再用 `add_job.py` 加；链接要是具体岗位页。
+- **想关注一家新公司**：看它招聘官网的网址属于 Workday / Oracle / 北森哪种，往 `watchlist_hk.json` 加一条，用 `watch_hk.py --only <名字> --dry` 验证能查到。

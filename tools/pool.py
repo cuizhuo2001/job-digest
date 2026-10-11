@@ -28,9 +28,11 @@ def load_config(path=None):
     ⚠️ 只读：别把它整个存回 config.json，状态要写回用 jdlib.save_state()。"""
     with io.open(path or jdlib.CFG_PATH, encoding="utf-8") as f:
         cfg = json.load(f)
-    for k in ("pool_path", "pool_path_hk", "out_md"):
+    for k in ("pool_path", "pool_path_hk"):
         if cfg.get(k):
-            cfg[k] = jdlib.resolve(cfg[k])
+            cfg[k] = [jdlib.resolve(x) for x in pool_files(cfg[k])]
+    if cfg.get("out_md"):
+        cfg["out_md"] = jdlib.resolve(cfg["out_md"])
     st = jdlib.load_state()
     for k in jdlib.STATE_DEFAULTS:
         cfg[k] = st[k]
@@ -47,18 +49,56 @@ def parse_date(s):
     return None
 
 
+# 池子 CSV 的标准列（import_cn / watch_hk / add_job 写出来的都是这个格式）
+POOL_FIELDS = ["id", "company", "title", "city", "deadline", "deadline_kind", "deadline_text", "apply_url",
+               "type", "industry", "tags", "score", "first_seen", "reasons"]
+
+
+def pool_files(v):
+    """pool_path 可以写一个文件，也可以写多个（前面的优先：重复岗位留前面那条）。"""
+    if not v:
+        return []
+    return [v] if isinstance(v, str) else list(v)
+
+
 def load_pool(path):
-    if not os.path.exists(path):
-        raise RuntimeError("找不到岗位池：%s" % path)
-    with io.open(path, encoding="utf-8-sig", newline="") as f:
-        return list(csv.DictReader(f))
+    """读一个或多个 CSV 拼起来；不存在的文件跳过，全都不存在才报错。"""
+    paths = pool_files(path)
+    rows, found = [], 0
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        found += 1
+        with io.open(p, encoding="utf-8-sig", newline="") as f:
+            rows += list(csv.DictReader(f))
+    if not found:
+        raise RuntimeError("找不到岗位池：%s" % "、".join(paths))
+    return rows
+
+
+def write_pool(path, rows):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=POOL_FIELDS, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(rows)
+    os.replace(tmp, path)
 
 
 def mtime_of(path):
-    """池子快照的日期 —— 简报里要标出来，提醒该刷新了。"""
-    if not path or not os.path.exists(path):
-        return None
-    return datetime.date.fromtimestamp(os.path.getmtime(path))
+    """池子数据的日期（多个文件取最新的）—— 简报里要标出来，提醒该刷新了。
+    导入的数据旁边有 <文件>.date（上游数据本身的日期），有就用它，不然用文件修改时间。"""
+    ds = []
+    files = [p for p in pool_files(path) if os.path.exists(p)]
+    # 手动补录的文件不算：今天补了一条不代表池子新鲜，别把「几天没更新」的提醒盖掉
+    auto = [p for p in files if not os.path.basename(p).startswith("manual_")]
+    for p in auto or files:
+        try:
+            ds.append(datetime.date.fromisoformat(io.open(p + ".date", encoding="utf-8").read().strip()))
+        except (OSError, ValueError):
+            ds.append(datetime.date.fromtimestamp(os.path.getmtime(p)))
+    return max(ds) if ds else None
 
 
 def pool_mtime(cfg):
@@ -75,6 +115,14 @@ def _num(s):
 def short_title(t, n=34):
     t = (t or "").replace("\n", " ").strip()
     return t if len(t) <= n else t[:n] + "…"
+
+
+def norm_url(u):
+    """比对用：去掉协议、www、语言段（/en-US/、/zh-CN/）和结尾斜杠；查询参数保留（北森的岗位 id 在里面）。"""
+    u = (u or "").strip().lower()
+    u = re.sub(r"^https?://(www\.)?", "", u)
+    u = re.sub(r"/[a-z]{2}-[a-z]{2}(?=/)", "", u)
+    return u.rstrip("/#")
 
 
 def norm_title(t):
@@ -131,6 +179,23 @@ def load_directions(cfg):
     return out
 
 
+FIN_HINT = ["金融", "银行", "证券", "基金", "保险", "信托", "期货", "资管", "资产管理", "投资", "支付", "Bank", "Securities",
+            "Insurance", "Asset Management", "Investment"]
+
+
+def all_presets(cfg=None):
+    path = jdlib.resolve((cfg or {}).get("direction_presets") or "presets/商科.json")
+    return [dict(v, name=k) for k, v in jdlib.load_json(path, {}).items() if not k.startswith("_")]
+
+
+def auto_tags(row, presets):
+    """导入/抓取时给岗位打方向标签：命中哪些预设方向就写哪些；行业像金融的再加一个「金融」。"""
+    tags = [d["name"] for d in presets if dir_match(row, d, set())]
+    if kw_hit(row.get("industry"), FIN_HINT) or kw_hit(row.get("company"), FIN_HINT):
+        tags.append("金融")
+    return ";".join(tags)
+
+
 def dir_match(r, d, tags):
     title, co = r.get("title") or "", r.get("company") or ""
     if d.get("must_company") and not kw_hit(co, d["must_company"]):
@@ -154,7 +219,7 @@ DROP_KEYS = ("已投", "死链", "屏蔽", "岗位类型", "行业/公司排除"
              "已过截止", "重复")
 
 
-def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=()):
+def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_dedupe=False):
     """筛选顺序：已投 → 死链 → 屏蔽 → 岗位类型 → 行业/公司排除 → 标题排除 → 城市 → 方向 → 已过截止 → 重复。"""
     applied = set(str(x).strip() for x in (cfg.get("applied_ids") or []))
     # 死链名单：check_links.py 探到 404/410 后写进去的 id，同 applied_ids 的机制
@@ -168,55 +233,76 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=()):
     # blocked_companies = 面板里点「不想投这家公司」攒下来的，跟手写的 exclude_company 一起生效
     ex_co = list(cfg.get("exclude_company") or []) + list(cfg.get("blocked_companies") or [])
 
+    def keys_of(r):
+        k = ((r.get("company") or "").strip(), norm_title(r.get("title")))
+        return k, (norm_url(r.get("apply_url")) if url_dedupe else "")
+
+    # 先把已投 / 死链 / 屏蔽的岗位记下来：别的来源（自动抓取、导入、手动补录）里的同一个岗位也要跟着跳过，
+    # 不然投过的会换个 id 又被推一遍
+    done = {}
+    for r in rows:
+        rid = (r.get("id") or "").strip()
+        why = "已投" if rid in applied else "死链" if rid in dead else "屏蔽" if rid in blocked else None
+        if rid and why:
+            k, u = keys_of(r)
+            done.setdefault(k, why)
+            if u:
+                done.setdefault(u, why)
+
     drop = dict.fromkeys(DROP_KEYS, 0)
     alive = []
     seen = set()
+    seen_url = set()
     for r in rows:
         rid = (r.get("id") or "").strip()
-        if rid and rid in applied:
-            drop["已投"] += 1
-            continue
-        if rid and rid in dead:
-            drop["死链"] += 1
-            continue
-        if rid and rid in blocked:
-            drop["屏蔽"] += 1
-            continue
-        if excl_type and (r.get("type") or "").strip() in excl_type:
-            drop["岗位类型"] += 1
-            continue
-        if kw_hit(r.get("industry"), ex_ind) or kw_hit(r.get("company"), ex_co):
-            drop["行业/公司排除"] += 1
+        k, u = keys_of(r)
+        why = ("已投" if rid in applied else "死链" if rid in dead else "屏蔽" if rid in blocked else None) \
+            if rid else None
+        why = why or done.get(k) or (done.get(u) if u else None)
+        if why:
+            drop[why] += 1
             continue
         title = r.get("title") or ""
-        # 大陆池常见「一条公告列一串岗位类别」，总排除词容易误杀；方向可设 ignore_global_exclude 绕开它
-        gex = kw_hit(title, excl)
-        if gex and not any(d.get("ignore_global_exclude") for d in dirs):
-            drop["标题排除"] += 1
-            continue
-        if not any(c in (r.get("city") or "") for c in cities):
-            drop["城市不符"] += 1
-            continue
-        if dirs:
-            tags = row_tags(r)
-            hit = [d["name"] for d in dirs
-                   if (not gex or d.get("ignore_global_exclude")) and dir_match(r, d, tags)]
-            if not hit:
-                drop["标题排除" if gex else "方向不符"] += 1
-                continue
-            r["_dirs"] = hit
+        if rid.startswith("m-"):
+            # 手动补录 = 用户自己挑的：不过类型/行业/标题/城市/方向这些规则，只查已投、过期、重复
+            r["_dirs"] = [x for x in re.split(r"[;,，；、/|\s]+", r.get("tags") or "") if x] or ["手动补录"]
         else:
-            r["_dirs"] = []
+            if excl_type and (r.get("type") or "").strip() in excl_type:
+                drop["岗位类型"] += 1
+                continue
+            if kw_hit(r.get("industry"), ex_ind) or kw_hit(r.get("company"), ex_co):
+                drop["行业/公司排除"] += 1
+                continue
+            # 大陆池常见「一条公告列一串岗位类别」，总排除词容易误杀；方向可设 ignore_global_exclude 绕开它
+            gex = kw_hit(title, excl)
+            if gex and not any(d.get("ignore_global_exclude") for d in dirs):
+                drop["标题排除"] += 1
+                continue
+            if not any(c in (r.get("city") or "") for c in cities):
+                drop["城市不符"] += 1
+                continue
+            if dirs:
+                tags = row_tags(r)
+                hit = [d["name"] for d in dirs
+                       if (not gex or d.get("ignore_global_exclude")) and dir_match(r, d, tags)]
+                if not hit:
+                    drop["标题排除" if gex else "方向不符"] += 1
+                    continue
+                r["_dirs"] = hit
+            else:
+                r["_dirs"] = []
         d = parse_date(r.get("deadline"))
         if d is not None and d < now:
             drop["已过截止"] += 1
             continue
         # 同公司 + 归一化标题相同 = 同一岗位被收录两次，只留分高的那条
-        key = ((r.get("company") or "").strip(), norm_title(title))
-        if key in seen:
+        # 多个来源（人工名单 / 自动抓取 / 手动补录）可能是同一个岗位：香港池链接相同也算重复
+        if k in seen or (u and u in seen_url):
             drop["重复"] += 1
             continue
-        seen.add(key)
+        seen.add(k)
+        if u:
+            seen_url.add(u)
         r["_d"] = d
         r["_left"] = (d - now).days if d else None
         r["_score"] = _num(r.get("score"))
@@ -285,11 +371,12 @@ def select(cfg, now=None):
 
     hk = None
     hk_path = cfg.get("pool_path_hk")
-    if hk_path and os.path.exists(hk_path):
+    if hk_path and any(os.path.exists(x) for x in hk_path):
         q_hk = int(cfg.get("daily_quota_hk", 5))
         hk = _filter_rows(load_pool(hk_path), cfg, now, cities=["香港"],
                           excl=cfg.get("exclude_title_hk") or [],
-                          quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()))
+                          quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()),
+                          url_dedupe=True)
         _pick_today(hk, dirs, "hk", q_hk)
 
     parts = [p for p in (cn, hk) if p]

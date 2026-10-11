@@ -1,0 +1,23 @@
+{
+ "_说明": "香港「关注公司」清单：tools/watch_hk.py 定期去这些公司的招聘系统搜 2027 校招/管培/graduate 岗，只留工作地在香港的，写进 data/hk_watch.csv。支持三种系统：workday（*.myworkdayjobs.com）、oracle（*.oraclecloud.com 的 CandidateExperience）、beisen（北森 *.zhiye.com）。想加公司：打开它的招聘官网，看网址属于哪一种，照下面的格式补一条。industry 用来打「金融」等标签",
+
+ "companies": [
+  {"name": "德意志银行 Deutsche Bank", "system": "workday", "host": "db.wd3.myworkdayjobs.com", "tenant": "db", "site": "DBWebsite", "industry": "银行"},
+  {"name": "大华银行 UOB", "system": "workday", "host": "uobgroup.wd3.myworkdayjobs.com", "tenant": "uobgroup", "site": "UOBExternal", "industry": "银行"},
+  {"name": "三菱日联 MUFG", "system": "workday", "host": "mufgub.wd3.myworkdayjobs.com", "tenant": "mufgub", "site": "MUFG-Careers", "industry": "银行"},
+  {"name": "花旗 Citi", "system": "workday", "host": "citi.wd5.myworkdayjobs.com", "tenant": "citi", "site": "2", "industry": "银行"},
+  {"name": "摩根士丹利 Morgan Stanley", "system": "workday", "host": "ms.wd5.myworkdayjobs.com", "tenant": "ms", "site": "External", "industry": "证券"},
+  {"name": "贝莱德 BlackRock", "system": "workday", "host": "blackrock.wd1.myworkdayjobs.com", "tenant": "blackrock", "site": "BlackRock_Professional", "industry": "资产管理"},
+  {"name": "道富 State Street", "system": "workday", "host": "statestreet.wd1.myworkdayjobs.com", "tenant": "statestreet", "site": "Global", "industry": "银行"},
+  {"name": "景顺 Invesco", "system": "workday", "host": "invesco.wd1.myworkdayjobs.com", "tenant": "invesco", "site": "IVZ", "industry": "资产管理"},
+  {"name": "宏利 Manulife", "system": "workday", "host": "manulife.wd3.myworkdayjobs.com", "tenant": "manulife", "site": "MFCJH_Jobs", "industry": "保险"},
+  {"name": "友邦 AIA", "system": "workday", "host": "aia.wd3.myworkdayjobs.com", "tenant": "aia", "site": "External", "industry": "保险"},
+  {"name": "永明 Sun Life", "system": "workday", "host": "sunlife.wd3.myworkdayjobs.com", "tenant": "sunlife", "site": "Experienced-Jobs", "industry": "保险"},
+  {"name": "万事达 Mastercard", "system": "workday", "host": "mastercard.wd1.myworkdayjobs.com", "tenant": "mastercard", "site": "CorporateCareers", "industry": "支付"},
+  {"name": "耐克 Nike", "system": "workday", "host": "nike.wd1.myworkdayjobs.com", "tenant": "nike", "site": "nke", "industry": "零售/消费品"},
+  {"name": "摩根大通 J.P. Morgan", "system": "oracle", "host": "jpmc.fa.oraclecloud.com", "site": "CX_1001", "industry": "银行"},
+  {"name": "施罗德 Schroders", "system": "oracle", "host": "ekbq.fa.em2.oraclecloud.com", "site": "CX_2", "industry": "资产管理"},
+  {"name": "中金 CICC", "system": "beisen", "host": "cicc.zhiye.com", "detail": "https://cicc.zhiye.com/custom/campusxq?jc=2&hideMenu=1&jobAdId={id}", "industry": "证券"},
+  {"name": "中信建投国际 CSCI", "system": "beisen", "host": "cscihk.zhiye.com", "industry": "证券"}
+ ]
+}

@@ -1,9 +1,12 @@
 {
  "_说明": "复制成 config.json 再改（config.json 不进 git）。改这里不用改代码。相对路径按仓库根目录算",
 
- "pool_path": "examples/pool_cn.example.csv",
- "pool_path_hk": "examples/pool_hk_2027.csv",
- "_pool说明": "大陆池 / 香港池，CSV 字段见 README。香港池默认是仓库自带的 2027 香港校招名单（30 条，2026-10-11 核实）；pool_path_hk 留空 = 只看大陆",
+ "pool_path": ["data/cn_import.csv", "data/manual_cn.csv"],
+ "pool_path_hk": ["examples/pool_hk_2027.csv", "data/hk_watch.csv", "data/manual_hk.csv"],
+ "_pool说明": "大陆池 / 香港池，可以写一个或多个 CSV（字段见 README），前面的优先：重复岗位留前面那条。data/ 下的文件由下面的 sources 和 tools/add_job.py 自动生成。只想离线试试，把 pool_path 换成 examples/pool_cn.example.csv",
+
+ "sources": {"cn_import": {"enabled": true}, "hk_watch": {"enabled": true}, "refresh_hours": 20},
+ "_sources说明": "每次推送前自动刷新（输出文件超过 refresh_hours 小时才刷）。cn_import = 下载 job-autopilot 公开的大陆 2027 秋招岗位库；hk_watch = 按 watchlist_hk.json 去关注公司的招聘系统查香港校招岗。手动刷新：python tools/refresh.py --force",
 
  "out_md": "今日投递清单.md",
  "_out_md说明": "每天推送时顺手写一份带完整链接的清单，留空就不写",
