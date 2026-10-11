@@ -83,9 +83,79 @@ def norm_title(t):
     return re.sub(r"[^\w一-鿿]+", "", (t or "")).lower()
 
 
-def _filter_rows(rows, cfg, now, cities, excl, quota, require_fin, row_ok=None,
-                 excl_type=()):
-    """通用筛选：已投 → 死链 → 社招 → 夕阳行业 → 吃资源/纯研发 → 地区 → 非金融口 → 已过截止 → 重复。"""
+# ───────────────────────── 关键词与方向 ─────────────────────────
+
+def kw_hit(text, kws):
+    """中文按子串；英文不分大小写、按单词开头匹配（Trader 也能命中 Traders），
+    3 个字母以内的英文按整词匹配（HR 不会命中 three，PR 不会命中 Programme）。"""
+    t = text or ""
+    tl = t.lower()
+    for k in kws or ():
+        k = (k or "").strip()
+        if not k:
+            continue
+        if k.isascii():
+            kl = re.escape(k.lower())
+            pat = r"(?<![a-z0-9])" + kl + (r"(?![a-z0-9])" if len(k) <= 3 else "")
+            if re.search(pat, tl):
+                return True
+        elif k in t:
+            return True
+    return False
+
+
+def row_tags(r):
+    tags = set(x for x in re.split(r"[;,，；、/|\s]+", r.get("tags") or "") if x)
+    if (r.get("fin") or "").strip() == "True":       # 老池子的 fin 列 = 「金融」标签
+        tags.add("金融")
+    return tags
+
+
+def load_directions(cfg):
+    """config.json 的 directions：写方向名就用 presets 里的定义；写对象可以自定义或覆盖同名预设。
+    没写 directions 时沿用老开关：require_fin=true 等于只要 fin=True 的岗位。"""
+    sel = cfg.get("directions")
+    if sel is None:
+        return [{"name": "金融", "tags": ["金融"]}] if cfg.get("require_fin") else []
+    path = jdlib.resolve(cfg.get("direction_presets") or "presets/商科.json")
+    presets = {k: v for k, v in jdlib.load_json(path, {}).items() if not k.startswith("_")}
+    out = []
+    for d in sel:
+        if isinstance(d, str):
+            if d not in presets:
+                raise RuntimeError("config.json 的 directions 里有个不认识的方向「%s」，可选：%s"
+                                   % (d, "、".join(presets)))
+            out.append(dict(presets[d], name=d))
+        else:
+            out.append(dict(presets.get(d.get("name"), {}), **d))
+    return out
+
+
+def dir_match(r, d, tags):
+    title, co = r.get("title") or "", r.get("company") or ""
+    if d.get("must_company") and not kw_hit(co, d["must_company"]):
+        return False
+    if d.get("must_title") and not kw_hit(title, d["must_title"]):
+        return False
+    if kw_hit(title, d.get("exclude_title")):
+        return False
+    if d["name"] in tags or tags & set(d.get("tags") or ()):
+        return True
+    keys = ("title", "industry", "company")
+    if not any(d.get(k) for k in keys) and not d.get("tags"):
+        return True                                   # 只写了 must_* 的方向
+    return (kw_hit(title, d.get("title")) or kw_hit(r.get("industry"), d.get("industry"))
+            or kw_hit(co, d.get("company")))
+
+
+# ───────────────────────── 筛选与排序 ─────────────────────────
+
+DROP_KEYS = ("已投", "死链", "屏蔽", "岗位类型", "行业/公司排除", "标题排除", "城市不符", "方向不符",
+             "已过截止", "重复")
+
+
+def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=()):
+    """筛选顺序：已投 → 死链 → 屏蔽 → 岗位类型 → 行业/公司排除 → 标题排除 → 城市 → 方向 → 已过截止 → 重复。"""
     applied = set(str(x).strip() for x in (cfg.get("applied_ids") or []))
     # 死链名单：check_links.py 探到 404/410 后写进去的 id，同 applied_ids 的机制
     dead = set(str(x).strip() for x in (cfg.get("dead_ids") or []))
@@ -94,12 +164,11 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, require_fin, row_ok=None,
     later = cfg.get("later") or {}
     urgent_days = int(cfg.get("urgent_days", 3))
     lookahead = int(cfg.get("lookahead_days", 7))
-    sunset_ind = cfg.get("exclude_industry") or []
+    ex_ind = cfg.get("exclude_industry") or []
     # blocked_companies = 面板里点「不想投这家公司」攒下来的，跟手写的 exclude_company 一起生效
-    sunset_co = list(cfg.get("exclude_company") or []) + list(cfg.get("blocked_companies") or [])
+    ex_co = list(cfg.get("exclude_company") or []) + list(cfg.get("blocked_companies") or [])
 
-    drop = {"已投": 0, "死链": 0, "屏蔽": 0, "社招": 0, "夕阳行业": 0, "吃资源/纯研发": 0,
-            "地区不符": 0, "已过截止": 0, "非金融口": 0, "重复": 0}
+    drop = dict.fromkeys(DROP_KEYS, 0)
     alive = []
     seen = set()
     for r in rows:
@@ -114,26 +183,30 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, require_fin, row_ok=None,
             drop["屏蔽"] += 1
             continue
         if excl_type and (r.get("type") or "").strip() in excl_type:
-            drop["社招"] += 1
+            drop["岗位类型"] += 1
             continue
-        if any(k in (r.get("industry") or "") for k in sunset_ind) or \
-                any(k in (r.get("company") or "") for k in sunset_co):
-            drop["夕阳行业"] += 1
+        if kw_hit(r.get("industry"), ex_ind) or kw_hit(r.get("company"), ex_co):
+            drop["行业/公司排除"] += 1
             continue
         title = r.get("title") or ""
-        if any(k in title for k in excl):
-            drop["吃资源/纯研发"] += 1
+        # 大陆池常见「一条公告列一串岗位类别」，总排除词容易误杀；方向可设 ignore_global_exclude 绕开它
+        gex = kw_hit(title, excl)
+        if gex and not any(d.get("ignore_global_exclude") for d in dirs):
+            drop["标题排除"] += 1
             continue
         if not any(c in (r.get("city") or "") for c in cities):
-            drop["地区不符"] += 1
+            drop["城市不符"] += 1
             continue
-        if row_ok is not None:
-            if not row_ok(r):
-                drop["非金融口"] += 1
+        if dirs:
+            tags = row_tags(r)
+            hit = [d["name"] for d in dirs
+                   if (not gex or d.get("ignore_global_exclude")) and dir_match(r, d, tags)]
+            if not hit:
+                drop["标题排除" if gex else "方向不符"] += 1
                 continue
-        elif require_fin and (r.get("fin") or "").strip() != "True":
-            drop["非金融口"] += 1
-            continue
+            r["_dirs"] = hit
+        else:
+            r["_dirs"] = []
         d = parse_date(r.get("deadline"))
         if d is not None and d < now:
             drop["已过截止"] += 1
@@ -163,62 +236,61 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, require_fin, row_ok=None,
     for r in ranked:
         r["_later"] = int(later.get(str(r.get("id")), 0))
     ranked.sort(key=lambda r: -r["_later"])        # 稳定排序，同档内顺序不变
-    today = ranked[:quota]
 
-    return {"urgent": urgent, "soon": soon, "today": today, "alive": len(alive),
+    return {"urgent": urgent, "soon": soon, "today": ranked[:quota], "alive": len(alive),
             "ranked": ranked,             # 面板补位 / 再来 5 家 用的完整排序
             "alive_rows": alive,          # check_links.py --all 用；其他消费者忽略
             "rolling": len(rolling), "fixed": len(fixed), "total": len(rows),
             "drop": drop}
 
 
+def _pick_today(part, dirs, key, quota):
+    """方向写了 quota_cn / quota_hk = 每天固定给它这么多家（不多不少）：
+    先按名额从它的岗位里挑，再用其余方向的岗位按排序补满。最后按原排序摆放。"""
+    fixed = [d for d in dirs if int(d.get("quota_" + key) or 0) > 0]
+    if not fixed:
+        return
+    fixed_names = set(d["name"] for d in fixed)
+    ranked = part["ranked"]
+    picks, ids = [], set()
+    for d in fixed:
+        n = int(d["quota_" + key])
+        for r in ranked:
+            if n <= 0 or len(picks) >= quota:
+                break
+            if d["name"] in r["_dirs"] and id(r) not in ids:
+                picks.append(r)
+                ids.add(id(r))
+                n -= 1
+    for r in ranked:
+        if len(picks) >= quota:
+            break
+        if id(r) not in ids and set(r["_dirs"]) - fixed_names:
+            picks.append(r)
+            ids.add(id(r))
+    pos = {id(r): i for i, r in enumerate(ranked)}
+    part["today"] = sorted(picks, key=lambda r: pos[id(r)])
+
+
 def select(cfg, now=None):
     """大陆池 + 香港池各排各的，再合并成一份结果。"""
     now = now or datetime.date.today()
-    require_fin = bool(cfg.get("require_fin", True))
+    dirs = load_directions(cfg)
 
-    cn = _filter_rows(
-        load_pool(cfg["pool_path"]), cfg, now,
-        cities=cfg.get("allowed_cities") or [],
-        excl=cfg.get("exclude_title") or [],
-        quota=int(cfg.get("daily_quota_cn", cfg.get("daily_quota", 10))),
-        require_fin=require_fin)
-
-    # 互联网/大厂 产品·运营·数据 岗：不要求 fin，但要「大厂公司名 + 岗位方向词」。
-    # 并进 cn 结果（consumers 只认 cn/hk 两个 key），cn 名额里划 daily_quota_tech 个给它
-    nt = int(cfg.get("daily_quota_tech", 0))
-    if nt > 0:
-        cos = cfg.get("tech_companies") or []
-        kws = cfg.get("tech_title_kw") or []
-        tech = _filter_rows(
-            load_pool(cfg["pool_path"]), cfg, now,
-            cities=cfg.get("allowed_cities") or [],
-            excl=cfg.get("exclude_title_tech") or [],
-            quota=nt, require_fin=False,
-            row_ok=lambda r: any(c in (r.get("company") or "") for c in cos)
-            and any(k in (r.get("title") or "") for k in kws))
-        n_fin = max(0, int(cfg.get("daily_quota_cn", 5)) - nt)
-        have = set(str(r.get("id")) for r in cn["today"][:n_fin])
-        extra = [r for r in tech["today"] if str(r.get("id")) not in have]
-        cn["today"] = cn["today"][:n_fin] + extra[:nt]
-        ids = set(str(r.get("id")) for r in cn["ranked"])
-        merged = cn["ranked"] + [r for r in tech["ranked"] if str(r.get("id")) not in ids]
-        cn["ranked"] = sorted(merged, key=lambda r: -r["_later"])
-        for k in ("urgent", "soon"):
-            ids = set(str(r.get("id")) for r in cn[k])
-            cn[k] = cn[k] + [r for r in tech[k] if str(r.get("id")) not in ids]
-        cn["alive"] += tech["alive"]
+    q_cn = int(cfg.get("daily_quota_cn", cfg.get("daily_quota", 10)))
+    cn = _filter_rows(load_pool(cfg["pool_path"]), cfg, now,
+                      cities=cfg.get("allowed_cities") or [],
+                      excl=cfg.get("exclude_title") or [], quota=q_cn, dirs=dirs)
+    _pick_today(cn, dirs, "cn", q_cn)
 
     hk = None
     hk_path = cfg.get("pool_path_hk")
     if hk_path and os.path.exists(hk_path):
-        hk = _filter_rows(
-            load_pool(hk_path), cfg, now,
-            cities=["香港"],
-            excl=cfg.get("exclude_title_hk") or [],
-            quota=int(cfg.get("daily_quota_hk", 5)),
-            require_fin=require_fin,
-            excl_type=tuple(cfg.get("exclude_type_hk") or ()))
+        q_hk = int(cfg.get("daily_quota_hk", 5))
+        hk = _filter_rows(load_pool(hk_path), cfg, now, cities=["香港"],
+                          excl=cfg.get("exclude_title_hk") or [],
+                          quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()))
+        _pick_today(hk, dirs, "hk", q_hk)
 
     parts = [p for p in (cn, hk) if p]
     stats = {
@@ -227,8 +299,7 @@ def select(cfg, now=None):
         "urgent": sum(len(p["urgent"]) for p in parts),
         "soon": sum(len(p["soon"]) for p in parts),
         "rolling": sum(p["rolling"] for p in parts),
-        "drop": {k: sum(p["drop"].get(k, 0) for p in parts)
-                 for k in cn["drop"]},
+        "drop": {k: sum(p["drop"].get(k, 0) for p in parts) for k in DROP_KEYS},
     }
     return {"cn": cn, "hk": hk, "stats": stats}
 

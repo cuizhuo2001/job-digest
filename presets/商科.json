@@ -1,0 +1,92 @@
+{
+ "_说明": "商科各类岗位的方向预设。config.json 的 directions 里写方向名就能用，比如 [\"风控合规\", \"咨询\"]。岗位命中任一方向就保留：标题/行业/公司命中对应关键词，或者池子 tags 列写了这个方向名。英文关键词不分大小写、按单词开头匹配；3 个字母以内的（HR、PR、BD…）按整词匹配。想改关键词就在 config.json 里写同名对象覆盖，比如 {\"name\": \"咨询\", \"company\": [\"麦肯锡\"]}。",
+
+ "管培": {
+  "title": ["管培", "管理培训生", "培训生", "储备干部", "储备人才", "Management Trainee", "Management Associate",
+            "Graduate Programme", "Graduate Program", "Graduate Trainee", "Analyst Programme", "Analyst Program",
+            "Rotational"]
+ },
+ "投行": {
+  "title": ["投行", "投资银行", "并购", "股权融资", "债券承销", "债务融资", "资本市场部", "Investment Banking", "IBD",
+            "M&A", "Mergers", "ECM", "DCM", "Equity Capital Markets", "Debt Capital Markets", "Corporate Finance"]
+ },
+ "销售交易": {
+  "title": ["销售交易", "交易员", "交易岗", "固定收益", "固收", "FICC", "衍生品", "做市", "Sales & Trading",
+            "Sales and Trading", "S&T", "Trader", "Trading", "Global Markets", "Structuring", "Delta One"]
+ },
+ "研究": {
+  "title": ["研究员", "研究助理", "研究岗", "行业研究", "投研", "宏观", "策略研究", "卖方研究", "Research", "Economist",
+            "Strategist"]
+ },
+ "资管财富": {
+  "title": ["资产管理", "资管", "基金", "投资经理", "投资助理", "FOF", "财富管理", "Asset Management", "Investment",
+            "Portfolio", "Wealth Management", "Fund"]
+ },
+ "风控合规": {
+  "title": ["风控", "风险", "合规", "内控", "反洗钱", "授信", "信贷审批", "Risk", "Compliance", "AML", "KYC", "Credit",
+            "Internal Control"]
+ },
+ "银行业务": {
+  "title": ["金融市场", "资金营运", "交易银行", "公司金融", "国际业务", "Corporate Banking", "Global Banking",
+            "Transaction Banking", "Treasury", "Trade Finance"],
+  "industry": ["银行"]
+ },
+ "保险精算": {
+  "title": ["精算", "核保", "理赔", "再保险", "Actuarial", "Actuary", "Underwriting", "Claims", "Reinsurance"],
+  "industry": ["保险"]
+ },
+ "审计税务": {
+  "title": ["审计", "鉴证", "税务", "Audit", "Assurance", "Tax", "Transfer Pricing"],
+  "company": ["德勤", "普华永道", "安永", "毕马威", "致同", "立信", "天健", "容诚", "信永中和", "Deloitte", "PwC", "EY",
+              "KPMG", "BDO", "RSM", "Mazars", "Grant Thornton", "Baker Tilly", "Crowe", "Moore"]
+ },
+ "财务会计": {
+  "title": ["财务", "会计", "核算", "预算", "成本", "资金管理", "FP&A", "Financial Analyst", "Finance Analyst",
+            "Business Controller", "Controller", "Accountant", "Accounting", "Finance Graduate", "Finance Associate"]
+ },
+ "咨询": {
+  "title": ["咨询", "Consulting", "Consultant", "Advisory"],
+  "company": ["麦肯锡", "贝恩", "波士顿咨询", "罗兰贝格", "埃森哲", "凯捷", "甫瀚", "McKinsey", "Bain", "BCG",
+              "Accenture", "Capgemini", "Protiviti", "Oliver Wyman", "Kearney"]
+ },
+ "战略投资": {
+  "title": ["战略", "投资分析", "投资者关系", "证券事务", "董事会办公室", "Strategy", "Strategic", "Corporate Development",
+            "Investor Relations"]
+ },
+ "市场品牌": {
+  "title": ["市场营销", "市场推广", "市场专员", "营销", "品牌", "广告", "公关", "传播", "媒介", "新媒体", "Marketing", "Brand",
+            "Communications", "PR", "Media"]
+ },
+ "销售商务": {
+  "title": ["销售", "商务", "大客户", "渠道", "客户经理", "BD", "Sales", "Business Development", "Account Manager",
+            "Key Account"],
+  "exclude_title": ["销售交易", "Sales & Trading", "Sales and Trading"]
+ },
+ "运营": {
+  "title": ["运营", "Operations", "Operation", "Ops"]
+ },
+ "产品": {
+  "title": ["产品经理", "产品助理", "产品策划", "Product Manager", "Product Analyst", "Product Associate",
+            "Product Management"]
+ },
+ "数据分析": {
+  "title": ["数据分析", "商业分析", "商分", "数据运营", "经营分析", "BI", "Data Analyst", "Data Analytics",
+            "Business Analyst", "Business Analytics", "Analytics"]
+ },
+ "人力资源": {
+  "title": ["人力资源", "人事", "招聘专员", "招聘助理", "招聘岗", "HRBP", "HR", "薪酬", "组织发展", "Human Resources",
+            "Talent Acquisition", "Recruiter"],
+  "_注意": "别加「招聘」「Recruitment」：会命中「校园招聘」「Campus Recruitment」这种标题"
+ },
+ "供应链": {
+  "title": ["供应链", "采购", "物流", "仓储", "Supply Chain", "Procurement", "Purchasing", "Logistics", "Sourcing",
+            "Planner", "Buyer"]
+ },
+ "行政综合": {
+  "title": ["行政", "综合管理", "综合岗", "秘书", "Administration", "Administrative", "Executive Assistant"]
+ },
+ "金融科技": {
+  "title": ["金融科技", "数字化", "IT审计", "科技风险", "Fintech", "Digital", "Technology Risk", "IT Audit",
+            "Transformation"]
+ }
+}

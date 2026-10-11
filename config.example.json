@@ -17,29 +17,24 @@
  "allowed_cities": ["香港", "深圳", "广州", "上海"],
  "_allowed_cities说明": "大陆池只留城市字段包含这些词的岗位（香港池固定只看香港）",
 
- "require_fin": true,
- "_require_fin说明": "true = 只推 fin 列为 True 的岗位（金融方向）。不限方向就改成 false",
+ "directions": ["管培", "风控合规", "审计税务", "财务会计", "咨询", "数据分析", "银行业务", "研究", "市场品牌"],
+ "_directions说明": "想投哪些方向，岗位命中任一个就推。可选（见 presets/商科.json）：管培、投行、销售交易、研究、资管财富、风控合规、银行业务、保险精算、审计税务、财务会计、咨询、战略投资、市场品牌、销售商务、运营、产品、数据分析、人力资源、供应链、行政综合、金融科技。删掉这一项 = 不按方向筛",
+ "_directions进阶": "也可以写对象：{\"name\": \"咨询\", \"quota_cn\": 2} = 大陆池每天固定推 2 家咨询；{\"name\": \"四大\", \"company\": [\"德勤\", \"安永\"]} = 自定义方向；ignore_global_exclude: true = 这个方向不受 exclude_title 约束（适合一条公告列一串岗位的情况）",
 
- "exclude_title": ["客户经理", "理财经理", "营销", "揽储", "网点", "支行", "销售",
-                   "软件研发", "后端", "前端", "测试工程师", "运维"],
- "_exclude_title说明": "大陆池：标题命中就跳过。默认挡掉靠人脉拉业绩的岗和纯开发岗，按自己的口径改",
+ "exclude_title": ["软件开发", "开发工程师", "后端", "前端", "客户端", "算法工程师", "测试工程师", "运维", "嵌入式",
+                   "理财顾问", "保险代理", "代理人"],
+ "_exclude_title说明": "大陆池：标题命中就跳过，优先于方向。默认挡掉纯技术开发岗和保险代理人招募，按自己的口径加（比如不想做销售就加上「销售」「客户经理」）",
 
- "exclude_title_hk": ["Summer Analyst", "Summer Internship", "Relationship Manager",
-                      "Private Banker", "Software Engineer", "Sales"],
+ "exclude_title_hk": ["Summer Analyst", "Summer Internship", "Software Engineer", "Developer",
+                      "Financial Consultant", "Financial Planner"],
  "_exclude_title_hk说明": "香港池：标题命中就跳过。⚠️ Summer Analyst / Summer Internship 是暑期实习管道，招的是比你晚一届的人，港硕一年制基本赶不上",
 
  "exclude_type_hk": ["社招", "实习", "代理人招募"],
  "_exclude_type_hk说明": "香港池按 type 列剔除：社招要 1–10 年经验，代理人招募是保险/理财顾问",
 
- "exclude_industry": ["房地产/建筑"],
- "exclude_company": ["城投", "地产", "置业"],
- "_exclude说明": "industry 或公司名包含这些词就跳过。⚠️ 别写「建设」——会误伤建设银行。面板里点「不想投这家公司」会记进 state.json 的 blocked_companies，跟这里一起生效",
-
- "daily_quota_tech": 0,
- "tech_companies": ["腾讯", "字节", "阿里", "美团", "京东", "网易", "蚂蚁", "微众"],
- "tech_title_kw": ["产品", "运营", "数据分析", "商业分析"],
- "exclude_title_tech": ["工程师", "算法", "开发"],
- "_tech说明": "可选：从 daily_quota_cn 里划 daily_quota_tech 家给互联网大厂的产品/运营/数据岗（不要求 fin）。0 = 关",
+ "exclude_industry": [],
+ "exclude_company": [],
+ "_exclude说明": "industry 或公司名包含这些词就跳过。面板里点「不想投这家公司」会记进 state.json 的 blocked_companies，跟这里一起生效",
 
  "reminders": [
   {"date": "2027-08-01", "lead_days": 14, "text": "（示例）香港 2028 届 graduate programme 一般 8–9 月开，去各家官网看一轮"}

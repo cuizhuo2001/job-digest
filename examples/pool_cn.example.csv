@@ -1,8 +1,10 @@
-﻿id,company,title,city,deadline,deadline_kind,deadline_text,apply_url,type,industry,fin,score,reasons
-cn-ex-1,示例银行深圳分行,2027届管理培训生,深圳,2027-01-15,fixed,2027-01-15,https://example.com/campus/position/1001,央国企,银行,True,86,示例
-cn-ex-2,示例证券,风险管理岗,上海 / 深圳,,asap,尽快投递,https://example.com/campus/position/1002,央国企,证券,True,80,
-cn-ex-3,示例基金,数据分析岗,广州,2026-12-31,fixed,2026-12-31,https://example.com/campus/position/1003,民企,基金,True,78,
-cn-ex-4,示例银行某支行,对公客户经理,深圳,,until_full,招满即止,https://example.com/campus/position/1004,央国企,银行,True,70,示例：标题含「客户经理」，会被剔除
-cn-ex-5,示例城投集团,财务管理岗,广州,,until_full,招满即止,https://example.com/campus/position/1005,国企,房地产/建筑,True,65,示例：行业排除
-cn-ex-6,示例科技,产品经理,深圳,,asap,尽快投递,https://example.com/campus/position/1006,民企,互联网,False,75,示例：fin=False，require_fin 时不推
-cn-ex-7,示例期货,研究员,北京,2027-02-28,fixed,2027-02-28,https://example.com/campus/position/1007,国企,期货,True,77,示例：城市不在 allowed_cities，会被剔除
+﻿id,company,title,city,deadline,deadline_kind,deadline_text,apply_url,type,industry,tags,score,reasons
+cn-ex-1,示例银行深圳分行,2027届管理培训生,深圳,2027-01-15,fixed,2027-01-15,https://example.com/campus/position/1001,央国企,银行,,86,
+cn-ex-2,示例证券,风险管理岗,上海 / 深圳,,asap,尽快投递,https://example.com/campus/position/1002,央国企,证券,,80,
+cn-ex-3,示例快消集团,市场营销管培生 / 品牌助理,广州,2026-12-31,fixed,2026-12-31,https://example.com/campus/position/1003,外企,快消,,78,
+cn-ex-4,示例会计师事务所,审计助理,深圳,,until_full,招满即止,https://example.com/campus/position/1004,外企,会计/审计,,76,
+cn-ex-5,示例科技,数据分析师 / 商业分析,上海,,asap,尽快投递,https://example.com/campus/position/1005,民企,互联网,,75,
+cn-ex-6,示例人寿,理财顾问（保险代理）,深圳,,until_full,长期,https://example.com/campus/position/1006,民企,保险,,60,示例：标题命中 exclude_title，会被剔除
+cn-ex-7,示例软件,Java 后端开发工程师,深圳,,asap,尽快投递,https://example.com/campus/position/1007,民企,互联网,,70,示例：纯开发岗，会被剔除
+cn-ex-8,示例期货,研究员,北京,2027-02-28,fixed,2027-02-28,https://example.com/campus/position/1008,国企,期货,,77,示例：城市不在 allowed_cities，会被剔除
+cn-ex-9,示例制造,设备工程师,广州,,asap,尽快投递,https://example.com/campus/position/1009,国企,制造业,,65,示例：不属于任何选中的方向，会被剔除
