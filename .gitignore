@@ -1,0 +1,19 @@
+# 个人配置 / 资料 / 密钥 —— 只在本机，仓库里只有 *.example.*
+config.json
+profile.json
+secrets.json
+
+# 运行状态和日志
+state.json
+history.jsonl
+push.log
+popup_today.json
+popup_port.json
+今日投递清单.md
+cover_letters/
+
+# 备份、临时文件
+*.bak*
+*.tmp
+__pycache__/
+*.pyc

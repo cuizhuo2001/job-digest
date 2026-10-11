@@ -1,0 +1,57 @@
+{
+ "_说明": "复制成 config.json 再改（config.json 不进 git）。改这里不用改代码。相对路径按仓库根目录算",
+
+ "pool_path": "examples/pool_cn.example.csv",
+ "pool_path_hk": "examples/pool_hk_2027.csv",
+ "_pool说明": "大陆池 / 香港池，CSV 字段见 README。香港池默认是仓库自带的 2027 香港校招名单（30 条，2026-10-11 核实）；pool_path_hk 留空 = 只看大陆",
+
+ "out_md": "今日投递清单.md",
+ "_out_md说明": "每天推送时顺手写一份带完整链接的清单，留空就不写",
+
+ "daily_quota_cn": 5,
+ "daily_quota_hk": 5,
+ "urgent_days": 3,
+ "lookahead_days": 7,
+ "_quota说明": "两边各推几家；urgent_days 天内截止算火烧眉毛；lookahead_days 是截止雷达往前看几天",
+
+ "allowed_cities": ["香港", "深圳", "广州", "上海"],
+ "_allowed_cities说明": "大陆池只留城市字段包含这些词的岗位（香港池固定只看香港）",
+
+ "require_fin": true,
+ "_require_fin说明": "true = 只推 fin 列为 True 的岗位（金融方向）。不限方向就改成 false",
+
+ "exclude_title": ["客户经理", "理财经理", "营销", "揽储", "网点", "支行", "销售",
+                   "软件研发", "后端", "前端", "测试工程师", "运维"],
+ "_exclude_title说明": "大陆池：标题命中就跳过。默认挡掉靠人脉拉业绩的岗和纯开发岗，按自己的口径改",
+
+ "exclude_title_hk": ["Summer Analyst", "Summer Internship", "Relationship Manager",
+                      "Private Banker", "Software Engineer", "Sales"],
+ "_exclude_title_hk说明": "香港池：标题命中就跳过。⚠️ Summer Analyst / Summer Internship 是暑期实习管道，招的是比你晚一届的人，港硕一年制基本赶不上",
+
+ "exclude_type_hk": ["社招", "实习", "代理人招募"],
+ "_exclude_type_hk说明": "香港池按 type 列剔除：社招要 1–10 年经验，代理人招募是保险/理财顾问",
+
+ "exclude_industry": ["房地产/建筑"],
+ "exclude_company": ["城投", "地产", "置业"],
+ "_exclude说明": "industry 或公司名包含这些词就跳过。⚠️ 别写「建设」——会误伤建设银行。面板里点「不想投这家公司」会记进 state.json 的 blocked_companies，跟这里一起生效",
+
+ "daily_quota_tech": 0,
+ "tech_companies": ["腾讯", "字节", "阿里", "美团", "京东", "网易", "蚂蚁", "微众"],
+ "tech_title_kw": ["产品", "运营", "数据分析", "商业分析"],
+ "exclude_title_tech": ["工程师", "算法", "开发"],
+ "_tech说明": "可选：从 daily_quota_cn 里划 daily_quota_tech 家给互联网大厂的产品/运营/数据岗（不要求 fin）。0 = 关",
+
+ "reminders": [
+  {"date": "2027-08-01", "lead_days": 14, "text": "（示例）香港 2028 届 graduate programme 一般 8–9 月开，去各家官网看一轮"}
+ ],
+ "_reminders说明": "池子里查不到、只有你知道的事。date 前 lead_days 天内每天在简报里提一次",
+
+ "notify": {"channels": ["console"]},
+ "_notify说明": "推送渠道，可多选：telegram / feishu / console（只打印）。密钥放环境变量或 secrets.json，见 README",
+
+ "schedule": {"push": "10:00", "nudge": ["10:40", "16:00"]},
+ "_schedule说明": "tools/register_task.py 用：每天几点推简报、几点让面板滑下来提醒。改完重跑一次注册脚本",
+
+ "dock": {"hide_when_running": ["league of legends.exe", "leagueclientux.exe", "valorant-win64-shipping.exe"]},
+ "_dock说明": "这些进程在跑时面板整个藏起来（打游戏别弹）。进程名小写，任务管理器「详细信息」里看"
+}

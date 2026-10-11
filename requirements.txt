@@ -1,0 +1,8 @@
+# 每日简报（tools/push.py、pool.py、check_links.py）只用标准库，不装这些也能跑。
+# 下面是面板（tools/apply_popup.py，仅 Windows）要的：
+pywebview>=5.0
+pystray>=0.19
+Pillow>=10.0
+pywin32>=306
+# 面板里「求职信 → 生成 PDF」要的（另外还要装 Microsoft Word）：
+python-docx>=1.1
