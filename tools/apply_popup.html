@@ -13,7 +13,7 @@ header h1{font:700 22px/1.2 "Noto Serif SC",Georgia,serif;margin:0}
 #cnt{color:var(--mute);font-size:13px;flex:1}
 .bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin:2px 0 12px;flex:none}
 .bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .35s}
-main{flex:1;overflow-y:auto;padding-bottom:34px}
+main{flex:1;overflow-y:auto;padding-bottom:18px}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 @media(max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
 .col h4{margin:0 0 6px;font-size:13px;font-weight:500;color:var(--mute);display:flex;justify-content:space-between}
@@ -62,7 +62,7 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .sum b{display:block;font:700 19px "Noto Serif SC",Georgia,serif}
 .sum span{font-size:11.5px;color:var(--mute)}
 .sub{font-size:12px;color:var(--mute);margin-top:6px;text-align:center}
-#toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 #toast.on{opacity:.92}#toast.err{background:var(--warn);color:#fff}
 .tabs{display:flex;gap:4px;flex:none}
 .tabs button{font-size:13px;padding:3px 12px}
@@ -116,22 +116,20 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .imp .warnline{font-size:12px;color:var(--mute);margin:0 0 8px}
 .banner{border:1px solid var(--acc);background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
 .banner .line{margin:8px 0 0}
-#handle{position:fixed;left:0;right:0;bottom:0;height:28px;pointer-events:none}
-#handle .tab{position:absolute;left:50%;top:0;transform:translateX(-50%);width:300px;height:28px;border-radius:0 0 10px 10px;background:var(--acc);color:#fff;font-size:13px;font-weight:500;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:8px;pointer-events:auto;cursor:pointer}
-@media (max-height:60px){#app,#toast{display:none}#handle .tab{border-radius:0;width:100%}}
-#handle .tab b{font:700 14px Georgia,serif;letter-spacing:0}
+.bs{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
+button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .qt{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;color:var(--mute)}
 .qt button{font-size:12px;line-height:1;padding:1px 7px;border-radius:6px}
 .qt b{color:var(--ink);font:700 13px Georgia,serif;min-width:16px;text-align:center}
 </style></head><body>
 <div id="app">
  <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button></div><span id="cnt"></span>
-  <button class="sm" data-a="hide" title="缩回顶边">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
+  <span class="bs">状态栏<span class="seg" id="bstyle"></span></span>
+  <button class="sm" data-a="pin" id="pinbtn" title="钉住后点别处也不收起">钉住</button><button class="sm" data-a="hide" title="收起（Esc）">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
  <div class="bar"><i id="bar"></i></div>
  <main id="main"><div id="jobs"><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
 </div>
 <div id="toast"></div>
-<div id="handle"><div class="tab" data-a="hide" id="tab">今日投递</div></div>
 <script>
 const T=new URLSearchParams(location.search).get('t');
 let S=null,open=null,blockFor=null,pendReason=null,quitArmed=false;
@@ -144,6 +142,7 @@ async function api(path,body){
  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
 async function load(){S=await api('/api/state');render()}
 window.onShow=()=>{if(!EDIT&&!IMP)load().catch(()=>{})};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.target.matches('input,textarea'))post('/api/dock',{op:'hide'})});
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',err?4000:1600)}
 async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}if(msg)toast(msg);return true}catch(e){toast('出错：'+e.message,true);return false}}
 
@@ -267,7 +266,8 @@ function render(){
  const den=c.pending+c.applied;
  $('#cnt').textContent=`待投 ${c.pending} · 稍后 ${c.later} · 已投 ${c.applied} · 屏蔽 ${c.blocked}`;
  $('#bar').style.width=(den?c.applied/den*100:0)+'%';
- $('#tab').innerHTML=c.pending?`今日投递 <b>${c.applied}/${den}</b>`:'今日投递 <b>✓</b> 全部完成';
+ $('#bstyle').innerHTML=Object.entries(S.bar.styles).map(([k,l])=>`<button data-a="bstyle" data-s="${k}" class="${S.bar.style===k?'on':''}">${l}</button>`).join('');
+ $('#pinbtn').textContent=S.bar.pinned?'已钉住':'钉住';$('#pinbtn').className='sm'+(S.bar.pinned?' on':'');
  $('#done').innerHTML=js.length&&!c.pending?'<div class="all">今天的都处理完了</div>':'';
  $('#cols').innerHTML=[['hk','香港'],['cn','大陆']].map(([k,l])=>{
   const rows=js.filter(j=>j.pool===k).sort((a,b)=>ORDER[a.status]-ORDER[b.status]);
@@ -327,11 +327,11 @@ document.addEventListener('click',async e=>{
  case'more':post('/api/more',{pool:el.dataset.pool},'补进来了');break;
  case'quota':{const k=el.dataset.pool,d=+el.dataset.d;await post('/api/quota',{pool:k,delta:d},d>0?'改成每天 '+(S.quota[k]+1)+' 家，今天多补了一家':'改成每天 '+Math.max(1,S.quota[k]-1)+' 家，明天起生效');break}
  case'hide':post('/api/dock',{op:'hide'});break;
+ case'pin':post('/api/dock',{op:'pin'},S.bar.pinned?'取消钉住：点别处会自动收起':'钉住了：点别处也不收，用完点「收起」');break;
+ case'bstyle':post('/api/dock',{op:'style',style:el.dataset.s},'状态栏换成「'+el.textContent+'」');break;
  case'quit':if(quitArmed)post('/api/dock',{op:'quit'});else{quitArmed=true;el.textContent='再点一次退出'}break;
  }});
 document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value});
-document.addEventListener('focusin',e=>{if(e.target.matches('input,textarea'))api('/api/hold',{on:true}).catch(()=>{})});
-document.addEventListener('focusout',e=>{if(e.target.matches('input,textarea'))api('/api/hold',{on:false}).catch(()=>{})});
 load().catch(e=>toast('加载失败：'+e.message,true));
 setInterval(()=>{if(!EDIT&&!IMP)load().catch(()=>{})},300000);
 </script></body></html>

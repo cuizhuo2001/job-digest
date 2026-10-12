@@ -4,8 +4,8 @@
 job-digest · 注册 / 刷新 Windows 任务计划（三个任务）
 
     JobDigest-Push    每天 schedule.push（默认 10:00）推简报
-    JobDigest-Panel   登录后 30 秒起常驻面板（贴顶边）
-    JobDigest-Nudge   每天 schedule.nudge（默认 10:40、16:00）让面板滑下来提醒
+    JobDigest-Panel   登录后 30 秒起常驻状态栏（点开是面板）
+    JobDigest-Nudge   每天 schedule.nudge（默认 10:40、16:00）把面板弹出来提醒
 
 Python 路径、当前用户、仓库位置都是运行时取的，换电脑直接跑就行。
 时间在 config.json 的 schedule 里改，改完重跑一次本脚本。
@@ -71,7 +71,7 @@ def tasks():
     return [
         ("JobDigest-Push", "今日投递 · 每日简报", daily(push_at), PY,
          '"%s"' % os.path.join(HERE, "push.py"), "PT20M"),
-        ("JobDigest-Panel", "今日投递 · 面板（登录后常驻，贴顶边）", logon, PYW, '"%s"' % popup, "PT0S"),
+        ("JobDigest-Panel", "今日投递 · 面板（登录后常驻状态栏）", logon, PYW, '"%s"' % popup, "PT0S"),
         ("JobDigest-Nudge", "今日投递 · 面板提醒", "".join(daily(t) for t in nudge_at), PYW,
          '"%s" --nudge' % popup, "PT0S"),
     ]

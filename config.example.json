@@ -48,7 +48,7 @@
  "_notify说明": "推送渠道，可多选：telegram / feishu / console（只打印）。密钥放环境变量或 secrets.json，见 README",
 
  "schedule": {"push": "10:00", "nudge": ["10:40", "16:00"]},
- "_schedule说明": "tools/register_task.py 用：每天几点推简报、几点让面板滑下来提醒。改完重跑一次注册脚本",
+ "_schedule说明": "tools/register_task.py 用：每天几点推简报、几点把面板弹出来提醒。改完重跑一次注册脚本",
 
  "dock": {"hide_when_running": ["league of legends.exe", "leagueclientux.exe", "valorant-win64-shipping.exe"]},
  "_dock说明": "这些进程在跑时面板整个藏起来（打游戏别弹）。进程名小写，任务管理器「详细信息」里看"

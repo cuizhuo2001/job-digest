@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-job-digest · 今日投递面板（贴屏幕顶边常驻，QQ 式）
+job-digest · 今日投递面板（常驻状态栏 + 点开的面板）
 
-pywebview（WebView2 内核）开一个无边框置顶窗口，页面在 apply_popup.html，
+pywebview（WebView2 内核）开两个无边框置顶窗口：状态栏（status_bar.html）和面板（apply_popup.html），
 后端是只监听 127.0.0.1 的小服务（带随机 token，防别的网页乱 POST）。
 
-- 贴边：默认贴顶边居中；鼠标碰顶部细边/把手停 0.2s 滑下，离开 0.6s 缩回；
-  拖离顶边 = 普通窗口，拖回顶边 = 重新吸附
+- 状态栏：常驻，显示今天投了几家、最近截止、关注公司新岗；三种外观（顶部条 / 卡片 / 胶囊）
+  在面板右上角或托盘菜单里换；按住左边的点点能拖，位置会记住
+- 面板：点状态栏出现，点别处 / Esc / 再点状态栏就收起；「钉住」后点别处也不收
 - 四态：待投 / 已投(applied_ids) / 稍后(later，明天排最前) / 屏蔽(blocked，带原因)
   稍后、屏蔽当场从同一个池子补一家；「再来 5 家」按栏补
 - 统计：每次操作追加到 history.jsonl；已投/稍后/屏蔽记在 state.json
 - 个人资料（简历、速查卡、求职信模板）读 profile.json，见 profile.example.json
 - 打游戏（gaming_guard）时整个窗口藏起来
-- 只支持 Windows（贴边靠 Win32 API，剪贴板靠 pywin32）
+- 只支持 Windows（窗口靠 Win32 API，剪贴板靠 pywin32）
 
-    pythonw apply_popup.py          常驻（开机自启用这个，静默贴边）
-    pythonw apply_popup.py --nudge  已在跑就让它滑下来提醒；没在跑就起一个并提醒
+    pythonw apply_popup.py          常驻（开机自启用这个，只显示状态栏）
+    pythonw apply_popup.py --nudge  已在跑就把面板弹出来提醒；没在跑就起一个并提醒
 """
 import io, os, re, sys, json, time, ctypes, secrets, datetime, threading, subprocess, webbrowser
 import urllib.request
@@ -33,6 +34,7 @@ HISTORY = jdlib.HISTORY
 TODAY = os.path.join(jdlib.ROOT, "popup_today.json")
 PORT_FILE = os.path.join(jdlib.ROOT, "popup_port.json")
 PAGE_PATH = os.path.join(HERE, "apply_popup.html")
+BAR_PATH = os.path.join(HERE, "status_bar.html")
 CL_TOOLS = os.path.join(HERE, "cl")
 # 用 pythonw 起面板时 sys.executable 是 pythonw.exe；跑转换脚本要它旁边的 python.exe
 _py = os.path.join(os.path.dirname(sys.executable), "python.exe")
@@ -317,7 +319,47 @@ def state():
     st["later_today"] = len(t.get("later_today", []))
     return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
             "me": me_state(), "import_prompt": profile_card.import_prompt(),
-            "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")}}
+            "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")},
+            "bar": {"style": WIN.style, "pinned": WIN.pinned, "styles": STYLE_NAMES}}
+
+
+_FRESH = {}
+
+
+def fresh_count():
+    """关注公司今天新挂出来的岗位数（和推送里「🆕」那段同一口径）；半小时算一次。"""
+    now = time.time()
+    if _FRESH.get("date") == today_str() and now - _FRESH.get("at", 0) < 1800:
+        return _FRESH["n"]
+    d = pool.select(pool.load_config(), datetime.date.today())
+    n = sum(1 for k in ("hk", "cn") if d.get(k) for r in d[k]["alive_rows"]
+            if r.get("first_seen") == today_str() and str(r.get("id", "")).startswith("w-"))
+    _FRESH.update(date=today_str(), at=now, n=n)
+    return n
+
+
+def bar_state():
+    """状态栏用的摘要：只读今天的名单，不重新排池子，点一下就能刷新。"""
+    with LOCK:
+        cfg = pool.load_config()
+        t = load_today()
+    c = {"hk": {"a": 0, "n": 0}, "cn": {"a": 0, "n": 0}}
+    pend = []
+    for j in t["jobs"]:
+        s = status_of(j["id"], cfg, t)
+        if s in ("applied", "pending"):
+            c[j["pool"]]["n"] += 1
+            c[j["pool"]]["a"] += s == "applied"
+        if s == "pending":
+            pend.append(j)
+    pend.sort(key=lambda j: 9999 if j["left"] is None else j["left"])
+    nx = pend[0] if pend else None
+    soon = int(cfg.get("urgent_days", 3))
+    return dict(c, style=WIN.style, open=WIN.panel_shown, pending=len(pend),
+                done=c["hk"]["a"] + c["cn"]["a"], den=c["hk"]["n"] + c["cn"]["n"],
+                urgent=sum(1 for j in pend if j["left"] is not None and j["left"] <= soon),
+                next=nx and {k: nx[k] for k in ("id", "company", "title", "left", "date", "url", "pool")},
+                new=fresh_count(), week=history_stats()["week"])
 
 
 # ───────────────────────── 求职信 ─────────────────────────
@@ -459,17 +501,22 @@ def handle_post(path, d):
             s.add(d["id"]) if d["on"] else s.discard(d["id"])
             t["need_cl"] = sorted(s)
             jdlib.save_json(TODAY, t)
-    elif path == "/api/hold":
-        DOCK.hold = bool(d["on"])
-        return {}
     elif path == "/api/dock":
-        if d["op"] == "hide":
-            DOCK.slide(False)
-        elif d["op"] == "show":
-            DOCK.nudge()
-        elif d["op"] == "quit":
+        op = d["op"]
+        if op == "hide":
+            WIN.hide_panel()
+        elif op == "show":
+            WIN.nudge()
+        elif op == "toggle":
+            WIN.toggle()
+        elif op == "pin":
+            WIN.pinned = not WIN.pinned
+        elif op == "style":
+            WIN.set_style(d["style"])
+        elif op == "quit":
             threading.Thread(target=quit_all, daemon=True).start()
-        return {}
+        return state() if op in ("pin", "style") else {}
+    WIN.refresh_bar()
     return state()
 
 
@@ -487,10 +534,13 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def do_GET(self):
-        if self.path.split("?")[0] == "/":
-            self._send(io.open(PAGE_PATH, encoding="utf-8").read(), "text/html; charset=utf-8")
+        page = {"/": PAGE_PATH, "/bar": BAR_PATH}.get(self.path.split("?")[0])
+        if page:
+            self._send(io.open(page, encoding="utf-8").read(), "text/html; charset=utf-8")
         elif self.path == "/api/state" and self.headers.get("X-T") == TOKEN:
             self._send(json.dumps(state(), ensure_ascii=False))
+        elif self.path == "/api/bar" and self.headers.get("X-T") == TOKEN:
+            self._send(json.dumps(bar_state(), ensure_ascii=False))
         else:
             self._send("{}", code=404)
 
@@ -506,145 +556,258 @@ class H(BaseHTTPRequestHandler):
             self._send(json.dumps({"error": str(e)}, ensure_ascii=False), code=500)
 
 
-# ───────────────────────── 贴边窗口 ─────────────────────────
+# ───────────────────────── 窗口：状态栏 + 面板 ─────────────────────────
+# 两个独立窗口：状态栏常驻（三种外观可换、能拖、记位置）；面板开机就建好藏着，
+# 点状态栏直接显示/隐藏（不改窗口大小，所以没有「滑出来」那一下卡顿）。
 
 user32 = ctypes.windll.user32
-SWP_SIZE = 0x0004 | 0x0010              # NOZORDER | NOACTIVATE（位置和大小一起改）
+for _f in (user32.FindWindowW, user32.GetForegroundWindow, user32.MonitorFromWindow):
+    _f.restype = ctypes.c_void_p
+SWP = 0x0004 | 0x0010                   # NOZORDER | NOACTIVATE（位置和大小一起改）
+BAR_TITLE = "今日投递 · 状态栏"
+STYLES = {"strip": (560, 30), "card": (300, 104), "pill": (236, 36)}   # 三种外观的窗口大小（CSS px）
+STYLE_NAMES = {"strip": "顶部条", "card": "卡片", "pill": "胶囊"}
+PANEL_W, PANEL_H = 1000, 720
 
 
-class Dock:
-    # 缩起时窗口直接缩成这么大（CSS px），只装得下「今日投递 x/x」小标签。
-    # ⚠️ 别用 SetWindowRgn 裁：WebView2 用 GPU 直接上屏，会绕过 region，露出整条面板背景
-    TAB_H, TAB_W = 28, 300
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
 
+
+def _rect(h):
+    r = wintypes.RECT()
+    user32.GetWindowRect(h, ctypes.byref(r))
+    return r.left, r.top, r.right, r.bottom
+
+
+def _work_area(h):
+    """窗口所在那块屏幕去掉任务栏后的范围。"""
+    mi = MONITORINFO()
+    mi.cbSize = ctypes.sizeof(mi)
+    user32.GetMonitorInfoW(ctypes.c_void_p(user32.MonitorFromWindow(h, 2)), ctypes.byref(mi))
+    w = mi.rcWork
+    return w.left, w.top, w.right, w.bottom
+
+
+def _scale(h):
+    try:
+        return user32.GetDpiForWindow(h) / 96.0
+    except Exception:
+        return 1.0
+
+
+def _round(h, small=False, border=None):
+    """Win11 圆角（DWM 合成那层裁，WebView2 也吃这套；SetWindowRgn 不行）。Win10 没有就保持直角。"""
+    try:
+        dwm = ctypes.windll.dwmapi
+        v = ctypes.c_int(3 if small else 2)                  # DWMWCP_ROUNDSMALL / ROUND
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(h), 33, ctypes.byref(v), 4)
+        c = ctypes.c_uint(0xFFFFFFFE if border is None else border)   # 描边：不要 / 指定颜色(0x00BBGGRR)
+        dwm.DwmSetWindowAttribute(ctypes.c_void_p(h), 34, ctypes.byref(c), 4)
+    except Exception:
+        pass
+
+
+def _foreground(h):
+    if user32.SetForegroundWindow(h) and user32.GetForegroundWindow() == h:
+        return
+    # 系统不让后台进程抢焦点时：临时挂到前台窗口的输入队列上再抢一次
+    a = user32.GetWindowThreadProcessId(ctypes.c_void_p(user32.GetForegroundWindow()), None)
+    b = ctypes.windll.kernel32.GetCurrentThreadId()
+    if a and a != b:
+        user32.AttachThreadInput(b, a, True)
+        user32.SetForegroundWindow(h)
+        user32.AttachThreadInput(b, a, False)
+
+
+def _tool_window(h):
+    """不占任务栏按钮、不进 Alt+Tab（托盘里有图标）。"""
+    ex = user32.GetWindowLongW(h, -20)
+    user32.SetWindowLongW(h, -20, (ex | 0x80) & ~0x40000)    # +TOOLWINDOW −APPWINDOW
+
+
+class Win:
     def __init__(self):
-        self.hwnd = None
-        self.window = None
-        self.mode = "docked"            # docked / float
-        self.shown = True
-        self.full = None                # 展开时的窗口大小 (w, h)
-        self.hold = False               # 页面里正在打字（屏蔽备注）时别缩
-        self.sticky_until = 0           # 提醒模式：滑下来后这段时间内不自动缩
+        self.bar = self.panel = None                  # hwnd
+        self.bar_win = self.panel_win = None          # pywebview 窗口
+        self.panel_shown = False
+        self.activated = False                        # 这次显示后面板拿到过焦点没有
+        self.pinned = False                           # 钉住：点别处也不收
+        self.nudge_until = 0                          # 提醒弹出来的：到点没碰过就自己收
+        self.want_nudge = 0
         self.hidden_for_game = False
+        self.bar_last = None
+        self.style = (jdlib.load_state().get("bar") or {}).get("style") or "strip"
+        if self.style not in STYLES:
+            self.style = "strip"
 
-    def rect(self):
-        r = wintypes.RECT()
-        user32.GetWindowRect(self.hwnd, ctypes.byref(r))
-        return r.left, r.top, r.right, r.bottom
+    # ── 状态栏 ──
+    def _bar_cfg(self):
+        st = jdlib.load_state()
+        return st, st.setdefault("bar", {})
 
-    def scale(self):
-        try:
-            return user32.GetDpiForWindow(self.hwnd) / 96.0
-        except Exception:
-            return 1.0
-
-    def _set(self, x, y, w, h):
-        user32.SetWindowPos(self.hwnd, 0, int(x), int(y), int(w), int(h), SWP_SIZE)
-
-    def slide(self, show):
-        if not self.hwnd or self.mode != "docked" or show == self.shown:
-            return
-        l, t, r, b = self.rect()
-        mid = (l + r) / 2
-        if show:
-            w, h = self.full
-            self._set(mid - w / 2, 0, w, h)
+    def place_bar(self):
+        s = _scale(self.bar)
+        w, h = (v * s for v in STYLES[self.style])
+        l, t, r, b = _work_area(self.bar)
+        pos = ((self._bar_cfg()[1].get("pos") or {}).get(self.style))
+        if pos:
+            x, y = pos
+        elif self.style == "strip":
+            x, y = (l + r - w) / 2, t
+        elif self.style == "card":
+            x, y = r - w - 12 * s, b - h - 12 * s
         else:
-            self.full = (r - l, b - t)      # 记住展开时的大小（用户可能拖过）
-            s = self.scale()
-            self._set(mid - self.TAB_W * s / 2, 0, self.TAB_W * s, self.TAB_H * s)
-        self.shown = show
-        if show and self.window:
+            x, y = r - w - 24 * s, t + 120 * s
+        vx, vy = user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)          # 整个虚拟桌面，防止换了显示器找不到
+        vw, vh = user32.GetSystemMetrics(78), user32.GetSystemMetrics(79)
+        x, y = max(vx, min(x, vx + vw - w)), max(vy, min(y, vy + vh - h))
+        user32.SetWindowPos(self.bar, 0, int(x), int(y), int(w), int(h), SWP)
+        _round(self.bar, small=self.style == "strip", border=0x005777D9 if self.style == "card" else None)
+        self.bar_last = _rect(self.bar)
+
+    def save_bar_pos(self, rc):
+        l, t = rc[0], rc[1]
+        if self.style == "strip" and t - _work_area(self.bar)[1] < 12 * _scale(self.bar):   # 顶部条拖到靠近顶边就吸上去
+            t = _work_area(self.bar)[1]
+            user32.SetWindowPos(self.bar, 0, l, t, 0, 0, SWP | 0x0001)                  # NOSIZE
+        st, bc = self._bar_cfg()
+        bc.setdefault("pos", {})[self.style] = [l, t]
+        jdlib.save_state(st)
+        self.bar_last = _rect(self.bar)
+
+    def set_style(self, style):
+        if style not in STYLES:
+            raise ValueError("没有这种样式：%s" % style)
+        self.style = style
+        st, bc = self._bar_cfg()
+        bc["style"] = style
+        jdlib.save_state(st)
+        if self.bar:
+            self.place_bar()
+        self.refresh_bar()
+
+    def reset_bar(self):
+        st, bc = self._bar_cfg()
+        (bc.get("pos") or {}).pop(self.style, None)
+        jdlib.save_state(st)
+        self.place_bar()
+
+    def js(self, win, code):
+        def run():
             try:
-                self.window.evaluate_js("window.onShow && window.onShow()")
+                win.evaluate_js(code)
             except Exception:
                 pass
+        if win:
+            threading.Thread(target=run, daemon=True).start()
 
-    def nudge(self, secs=8):
-        self.sticky_until = time.time() + secs
-        if self.mode == "docked":
-            self.slide(True)
+    def refresh_bar(self):
+        self.js(self.bar_win, "window.refresh && refresh()")
 
-    def place(self):
-        w, h = self.full
-        sw = user32.GetSystemMetrics(0)
-        self._set((sw - w) / 2, 0, w, h)
-        self.mode, self.shown = "docked", True
+    # ── 面板 ──
+    def place_panel(self):
+        s = _scale(self.panel)
+        bl, bt, br, bb = _rect(self.bar)
+        l, t, r, b = _work_area(self.bar)
+        w, h = min(PANEL_W * s, r - l), min(PANEL_H * s, b - t)
+        gap = 6 * s
+        x = br - w if self.style == "card" else (bl + br - w) / 2
+        y = bb + gap if (bt + bb) / 2 < (t + b) / 2 else bt - gap - h     # 状态栏在上半屏就往下开，否则往上开
+        x, y = max(l, min(x, r - w)), max(t, min(y, b - h))
+        user32.SetWindowPos(self.panel, 0, int(x), int(y), int(w), int(h), SWP)
 
-    def redock(self):
-        if not self.shown:
-            self.slide(True)
-        l, t, r, b = self.rect()
-        self.full = (r - l, b - t)
-        self.place()
-        self.sticky_until = time.time() + 3
+    def show_panel(self, activate=True):
+        if not self.panel or self.hidden_for_game:
+            return
+        if not self.panel_shown:
+            self.place_panel()
+            user32.ShowWindow(self.panel, 5 if activate else 4)          # SW_SHOW / SW_SHOWNOACTIVATE
+            self.panel_shown, self.activated = True, False
+            self.js(self.panel_win, "window.onShow && window.onShow()")
+            self.js(self.bar_win, "window.barPanel && barPanel(true)")
+        if activate:
+            self.nudge_until = 0
+            _foreground(self.panel)
 
-    def in_trigger(self, cx, cy):
-        """缩起时窗口本身就是那块小标签：鼠标在窗口里 = 碰到了。"""
-        l, t, r, b = self.rect()
-        return l <= cx < r and t <= cy < b + 2
+    def hide_panel(self):
+        if self.panel and self.panel_shown:
+            user32.ShowWindow(self.panel, 0)                             # SW_HIDE
+            self.panel_shown, self.nudge_until = False, 0
+            self.js(self.bar_win, "window.barPanel && barPanel(false)")
+
+    def toggle(self):
+        self.hide_panel() if self.panel_shown else self.show_panel(True)
+
+    def nudge(self, secs=12):
+        """定时提醒：面板弹出来但不抢焦点；这段时间里没碰它就自己收回去。"""
+        if not self.panel:
+            self.want_nudge = secs
+            return
+        self.show_panel(False)
+        if not self.activated:
+            self.nudge_until = time.time() + secs
+        self.js(self.bar_win, "window.pulse && pulse()")
+
+    def cursor_in(self, h):
+        pt = wintypes.POINT()
+        user32.GetCursorPos(ctypes.byref(pt))
+        l, t, r, b = _rect(h)
+        return l <= pt.x < r and t <= pt.y < b
 
     def loop(self):
         import gaming_guard
         games = (pool.load_config().get("dock") or {}).get("hide_when_running")
         if games:
             gaming_guard.GAMES = [g.lower() for g in games]
-        while not self.hwnd:
-            self.hwnd = user32.FindWindowW(None, TITLE)
+        while not (self.bar and self.panel):
+            self.bar = self.bar or user32.FindWindowW(None, BAR_TITLE)
+            self.panel = self.panel or user32.FindWindowW(None, TITLE)
             time.sleep(0.1)
-        l, t, r, b = self.rect()
-        self.full = (r - l, b - t)
-        self.place()
-        hover_t = leave_t = None
+        for h in (self.bar, self.panel):
+            user32.ShowWindow(h, 0)
+            _tool_window(h)
+        _round(self.panel)
+        self.place_bar()
+        user32.ShowWindow(self.bar, 4)                                   # SW_SHOWNOACTIVATE
+        if self.want_nudge:
+            self.nudge(self.want_nudge)
         last_game = 0
-        pt = wintypes.POINT()
         while True:
-            time.sleep(0.04)
+            time.sleep(0.05)
             now = time.time()
             if now - last_game > 20:
                 last_game = now
                 g = gaming_guard.gaming()
                 if g and not self.hidden_for_game:
-                    user32.ShowWindow(self.hwnd, 0)                  # SW_HIDE
+                    self.hide_panel()
+                    user32.ShowWindow(self.bar, 0)
                     self.hidden_for_game = True
                 elif not g and self.hidden_for_game:
-                    user32.ShowWindow(self.hwnd, 4)                  # SW_SHOWNOACTIVATE
+                    user32.ShowWindow(self.bar, 4)
                     self.hidden_for_game = False
             if self.hidden_for_game:
                 continue
-            user32.GetCursorPos(ctypes.byref(pt))
-            cx, cy = pt.x, pt.y
-            l, t, r, b = self.rect()
-            if user32.GetAsyncKeyState(0x01) & 0x8000:              # 左键按着：可能在拖
-                if self.mode == "docked" and self.shown and t > 8:
-                    self.mode = "float"
-                hover_t = leave_t = None
-                continue
-            if self.mode == "float":
-                if t <= 8:                                           # 拖回顶边松手 = 重新吸附
-                    self._move(l, 0)
-                    self.mode, self.shown = "docked", True
-                continue
-            if self.shown:
-                inside = l <= cx < r and t <= cy < b
-                if inside or self.hold or now < self.sticky_until:
-                    leave_t = None
-                else:
-                    leave_t = leave_t or now
-                    if now - leave_t > 0.6:
-                        self.slide(False)
-                        leave_t = None
-            else:
-                if self.in_trigger(cx, cy):
-                    hover_t = hover_t or now
-                    if now - hover_t > 0.2:
-                        self.slide(True)
-                        hover_t = None
-                else:
-                    hover_t = None
+            if self.panel_shown:
+                fg = user32.GetForegroundWindow()
+                down = user32.GetAsyncKeyState(0x01) & 0x8000
+                if fg == self.panel:
+                    self.activated, self.nudge_until = True, 0
+                outside = down and not self.cursor_in(self.panel) and not self.cursor_in(self.bar)
+                if self.pinned:
+                    pass
+                elif outside or (self.activated and fg not in (self.panel, self.bar)):
+                    self.hide_panel()                                    # 点了别处 = 收起
+                elif self.nudge_until and now > self.nudge_until and not self.cursor_in(self.panel):
+                    self.hide_panel()
+            if not user32.GetAsyncKeyState(0x01) & 0x8000:               # 松开鼠标后看状态栏是不是被拖过
+                rc = _rect(self.bar)
+                if rc != self.bar_last:
+                    self.save_bar_pos(rc)
 
 
-DOCK = Dock()
+WIN = Win()
 ICON = None
 
 
@@ -671,9 +834,14 @@ def tray():
     dr.rectangle((18, 22, 46, 26), fill=(255, 255, 255, 255))
     dr.rectangle((18, 31, 46, 35), fill=(255, 255, 255, 255))
     dr.rectangle((18, 40, 38, 44), fill=(255, 255, 255, 255))
+
+    def style_item(k):
+        return pystray.MenuItem(STYLE_NAMES[k], lambda: WIN.set_style(k),
+                                checked=lambda item: WIN.style == k, radio=True)
     ICON = pystray.Icon("jobdock", img, "今日投递", pystray.Menu(
-        pystray.MenuItem("展开", lambda: DOCK.nudge(3), default=True),
-        pystray.MenuItem("吸附回顶边", lambda: DOCK.redock()),
+        pystray.MenuItem("打开面板", lambda: WIN.show_panel(True), default=True),
+        pystray.MenuItem("状态栏样式", pystray.Menu(*[style_item(k) for k in STYLES])),
+        pystray.MenuItem("状态栏放回默认位置", lambda: WIN.reset_bar()),
         pystray.MenuItem("退出", lambda: quit_all())))
     ICON.run_detached()
 
@@ -704,16 +872,27 @@ def main():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     jdlib.save_json(PORT_FILE, {"port": port, "token": TOKEN})
 
-    DOCK.window = webview.create_window(
-        TITLE, "http://127.0.0.1:%d/?t=%s" % (port, TOKEN), width=1000, height=720,
-        frameless=True, on_top=True, easy_drag=False, background_color="#f5f4ed",
-        min_size=(Dock.TAB_W, Dock.TAB_H))      # pywebview 默认最小 200×100，不放开的话缩起时标签下面会多出一截
+    base = "http://127.0.0.1:%d" % port
+    w, h = STYLES[WIN.style]
+    # 先建的是主窗口：关掉状态栏 = 退出；面板被 Alt+F4 只是藏起来
+    WIN.bar_win = webview.create_window(
+        BAR_TITLE, "%s/bar?t=%s" % (base, TOKEN), width=w, height=h, x=-32000, y=-32000,
+        frameless=True, on_top=True, easy_drag=False, background_color="#d97757",
+        min_size=(100, 24))             # pywebview 默认最小 200×100，不放开的话状态栏下面会多出一截
+    WIN.panel_win = webview.create_window(
+        TITLE, "%s/?t=%s" % (base, TOKEN), width=PANEL_W, height=PANEL_H, x=-32000, y=-32000,
+        frameless=True, on_top=True, easy_drag=False, background_color="#f5f4ed")
+
+    def on_close():
+        WIN.hide_panel()
+        return False
+    WIN.panel_win.events.closing += on_close
     if nudge and not all_done():
-        DOCK.sticky_until = time.time() + 15
+        WIN.want_nudge = 15
 
     def started():
         tray()
-        DOCK.loop()
+        WIN.loop()
 
     webview.start(started)
     quit_all()
