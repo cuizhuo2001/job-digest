@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import jdlib  # noqa: E402
 import pool  # noqa: E402
+import profile_card  # noqa: E402
 
 HISTORY = jdlib.HISTORY
 TODAY = os.path.join(jdlib.ROOT, "popup_today.json")
@@ -223,35 +224,53 @@ def history_stats():
             "week": sum(1 for v in ap.values() if v >= monday)}
 
 
-def card_fields():
-    """解析填表速查卡：每张表的「字段 | 填什么」，值取反引号里的内容。每次实时读，不留副本。"""
-    prof = jdlib.load_profile()
-    try:
-        txt = io.open(prof["card_path"], encoding="utf-8").read()
-    except OSError:
-        return []
-    sec, out = "", []
-    for line in txt.splitlines():
-        m = re.match(r"##\s*[①-⑳]?\s*(.+)", line)
-        if m:
-            sec = re.sub(r"[（(].*", "", m.group(1)).strip()
-            continue
-        if not line.startswith("|"):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 2 or cells[0] in ("字段", "问题", "时间") or not cells[0].strip("-: "):
-            continue
-        vals = re.findall(r"`([^`]+)`", cells[1])
-        if not vals:
-            continue
-        tip = re.sub(r"[*`⚠️]", "", cells[2]).strip() if len(cells) > 2 else ""
-        f = {"sec": sec, "label": cells[0], "vals": vals, "tip": tip, "hk": None, "cn": None}
-        for k, lst in prof["card_fields"].items():
-            for i, (s, lab) in enumerate(lst):
-                if s in sec and lab == cells[0]:
-                    f[k] = i
-        out.append(f)
-    return out
+# ───────────────────────── 我的资料 ─────────────────────────
+
+PENDING = {}            # 导入简历：识别出来、等用户点「保存」的那份
+
+
+def card_path():
+    return jdlib.load_profile()["card_path"]
+
+
+def me_load():
+    return profile_card.load(card_path())
+
+
+def me_state(prof=None):
+    path = card_path()
+    prof = prof or me_load()
+    return {"parts": profile_card.view(prof, jdlib.resolve), "file": path, "found": os.path.exists(path)}
+
+
+def me_file(key):
+    """附件 part 里登记的文件路径（只认这里登记过的，别的路径不开）。"""
+    c = me_load()["parts"]["files"]["cells"].get(key) or {}
+    if not c.get("zh"):
+        raise ValueError("「我的资料 → 附件」里还没填这个文件")
+    return jdlib.resolve(c["zh"])
+
+
+def me_post(path, d):
+    with LOCK:
+        if path == "/api/me/save":
+            prof = profile_card.apply_edit(me_load(), d["part"], d["data"])
+        elif path == "/api/me/confirm":
+            prof = profile_card.confirm_ai(me_load(), d["part"], d.get("field"), d["lang"],
+                                           d.get("card"), d.get("extra"))
+        elif path == "/api/me/parse":
+            prof, st = profile_card.from_import(d.get("text") or "", me_load())
+            PENDING["prof"] = prof
+            return {"preview": me_state(prof), "stats": st,
+                    "todo": {"zh": profile_card.todo(prof, "zh"), "en": profile_card.todo(prof, "en")}}
+        elif path == "/api/me/import":
+            prof = PENDING.pop("prof", None)
+            if not prof:
+                raise ValueError("没有待保存的导入结果，重新识别一次")
+        else:
+            raise ValueError("未知操作 %s" % path)
+        profile_card.save(card_path(), prof)
+    return None
 
 
 def cl_info(jid, cfg):
@@ -280,8 +299,8 @@ def state():
     st["total"] = len(cfg.get("applied_ids") or [])
     st["blocked_today"] = sum(1 for e in (cfg.get("blocked") or {}).values() if e.get("date") == today_str())
     st["later_today"] = len(t.get("later_today", []))
-    return {"date": t["date"], "jobs": jobs, "fields": card_fields(), "stats": st, "remain": remain,
-            "reasons": REASONS, "resume": jdlib.load_profile()["resume"]}
+    return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
+            "me": me_state(), "import_prompt": profile_card.import_prompt()}
 
 
 # ───────────────────────── 求职信 ─────────────────────────
@@ -309,7 +328,7 @@ def cl_draft(job):
         fields.update(company=job["company"], title=job["title"], company_en=en,
                       url=job["url"] or "（池子里没有链接）",
                       deadline=job.get("deadline") or "招满即止", today=today_str(),
-                      resume=(prof["resume"] or {}).get(job["pool"], ""))
+                      resume=_resume_or_blank(job["pool"]))
         with io.open(path, "w", encoding="utf-8") as f:
             f.write(tpl.format_map(fields))
     st = jdlib.load_state()
@@ -332,10 +351,19 @@ def cl_pdf(base):
 
 
 def resume_of(pool_key):
-    path = (jdlib.load_profile()["resume"] or {}).get(pool_key)
+    """香港岗用英文简历、大陆岗用中文简历：先看「我的资料 → 附件」，没填再看 profile.json 的 resume。"""
+    c = me_load()["parts"]["files"]["cells"].get("resume_en" if pool_key == "hk" else "resume_cn") or {}
+    path = jdlib.resolve(c["zh"]) if c.get("zh") else (jdlib.load_profile()["resume"] or {}).get(pool_key)
     if not path:
-        raise ValueError("profile.json 的 resume 里没配 %s 用的简历" % pool_key)
+        raise ValueError("还没登记%s简历：去「我的资料 → 附件」里填上路径" % ("英文" if pool_key == "hk" else "中文"))
     return path
+
+
+def _resume_or_blank(pool_key):
+    try:
+        return resume_of(pool_key)
+    except ValueError:
+        return ""
 
 
 def open_file(path):
@@ -366,9 +394,15 @@ def handle_post(path, d):
         act(str(d["id"]), d["act"], d.get("reason", ""), d.get("note", ""))
     elif path == "/api/more":
         more(d["pool"])
+    elif path.startswith("/api/me/"):
+        r = me_post(path, d)
+        if r is not None:
+            return r
     elif path == "/api/clip":
         if "text" in d:
             set_clip(d["text"])
+        elif d.get("what") == "file":
+            set_clip(os.path.normpath(me_file(d["key"])))
         else:
             job = find_job(str(d["id"]))
             prof = jdlib.load_profile()
@@ -377,6 +411,9 @@ def handle_post(path, d):
             else:
                 base = cl_info(job["id"], pool.load_config())["base"]
                 set_clip(os.path.normpath(os.path.join(prof["cover_letter_dir"], base + ".pdf")))
+        return {}
+    elif path == "/api/open" and d.get("what") == "file":
+        open_file(me_file(d["key"]))
         return {}
     elif path == "/api/open":
         job = find_job(str(d["id"]))

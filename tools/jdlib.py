@@ -86,28 +86,16 @@ def save_state(st):
 
 # ───────────────────────── 个人资料 ─────────────────────────
 
-# 速查卡里默认露出来的字段（section 关键词, 字段名）；其余进「更多」。
-# 跟 templates/填表速查卡.example.md 的写法对齐，profile.json 的 card_fields 可覆盖
-CARD_FIELDS = {
-    "hk": [["身份", "全名 English Full Name"], ["身份", "姓氏 Last Name / 姓"], ["身份", "名 First / Given Name"],
-           ["联系", "邮箱（主）"], ["联系", "手机（香港）"], ["硕士", "学校（英）"], ["硕士", "专业（英）"],
-           ["硕士", "毕业时间"], ["语言", "雅思总分"], ["签证", "标准英文答法"]],
-    "cn": [["身份", "姓名（中文）"], ["联系", "邮箱（主）"], ["联系", "手机（大陆）"], ["硕士", "学校（中）"],
-           ["硕士", "专业（中）"], ["硕士", "毕业时间"], ["本科", "学校（中）"], ["本科", "专业"],
-           ["语言", "六级 CET-6"], ["大陆", "政治面貌"]],
-}
-
-
 def load_profile():
-    """每次现读，改了 profile.json 不用重启面板。缺省值都指向 templates/ 里的示例。"""
+    """每次现读，改了 profile.json 不用重启面板。
+    card_path = 「我的资料」那份填表速查卡，默认在仓库根目录（.gitignore 了；没有就由面板导入简历时新建）。"""
     p = load_json(PROFILE_PATH, {})
     out = dict(p)
     out["resume"] = {k: resolve(v) for k, v in (p.get("resume") or {}).items()}
-    out["card_path"] = resolve(p.get("card_path") or "templates/填表速查卡.example.md")
+    out["card_path"] = resolve(p.get("card_path") or "填表速查卡.md")
     out["cover_letter_dir"] = resolve(p.get("cover_letter_dir") or "cover_letters")
     out["cover_letter_template"] = resolve(p.get("cover_letter_template")
                                            or "templates/cover_letter.example.md")
-    out["card_fields"] = p.get("card_fields") or CARD_FIELDS
     return out
 
 

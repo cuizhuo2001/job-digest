@@ -64,28 +64,82 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .sub{font-size:12px;color:var(--mute);margin-top:6px;text-align:center}
 #toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 14px;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 #toast.on{opacity:.92}#toast.err{background:var(--warn);color:#fff}
+.tabs{display:flex;gap:4px;flex:none}
+.tabs button{font-size:13px;padding:3px 12px}
+.tabs button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+#me{display:none}
+.me{display:grid;grid-template-columns:128px minmax(0,1fr);gap:16px;align-items:start}
+.mnav{position:sticky;top:0;display:flex;flex-direction:column;gap:2px}
+.mnav a{display:flex;justify-content:space-between;align-items:center;padding:5px 9px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--mute)}
+.mnav a:hover{background:var(--card);color:var(--ink)}
+.mnav em{font-style:normal;font-size:11px;min-width:18px;text-align:center;border-radius:99px;background:var(--amber);color:#fff;padding:0 5px}
+.mnav .hint{font-size:11px;color:var(--mute);margin:8px 0 0 9px;line-height:1.5}
+.mtool{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+.mtool .file{font-size:11.5px;color:var(--mute);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:3px 11px;font-size:12.5px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.part{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px 6px;margin-bottom:12px}
+.part h3{display:flex;align-items:center;gap:8px;margin:0 0 8px;font:700 15px/1.3 "Noto Serif SC",Georgia,serif}
+.part h3 .r{margin-left:auto;display:flex;gap:6px}
+.part h3 .n{color:var(--acc);font-family:Georgia,serif}
+.mk{display:inline-flex;max-width:100%;margin:0 5px 6px 0;vertical-align:top}
+.mk .chip{margin:0}
+.chip.todo{border-color:var(--amber);color:var(--amber);background:transparent}
+.chip.ai{border-style:dashed;border-color:var(--acc)}
+.chip.ai+button{border-radius:0 8px 8px 0;border-left:0;font-size:11px;padding:0 8px;color:var(--acc);border-color:var(--acc)}
+.mk.ai .chip{border-radius:8px 0 0 8px}
+.chip.warn{border-color:var(--warn);color:var(--warn)}
+.mcard{border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:8px;background:var(--bg)}
+.mcard .ct{display:flex;gap:8px;align-items:baseline;cursor:pointer;margin-bottom:2px}
+.mcard .ct b{font-weight:700;font-size:13.5px}
+.mcard .ct span{font-size:12px;color:var(--mute)}
+.mcard .ct i{font-style:normal;margin-left:auto;font-size:11px;color:var(--amber)}
+.mcard .body{margin-top:7px}
+.desc{display:block;width:100%;text-align:left;border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;white-space:pre-wrap;margin:0 0 6px;background:transparent;color:var(--ink);font-weight:400}
+.desc small{display:block;color:var(--mute);font-size:11px;margin-bottom:2px}
+.desc.ai{border-color:var(--acc)}
+.fl{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12.5px}
+.fl .k{color:var(--mute);width:72px;flex:none}
+.fl .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1fr);gap:5px 8px;align-items:center;font-size:12.5px;margin-bottom:8px}
+.ed .k{color:var(--mute)}
+.ed .k.req::after{content:" *";color:var(--amber)}
+.ed input[type=text],.ed textarea{width:100%;min-width:0;font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;padding:4px 8px}
+.ed textarea{min-height:64px;resize:vertical}
+.ed .h{font-size:11px;color:var(--mute)}
+.edc{border:1px solid var(--line);border-radius:10px;padding:8px 10px 2px;margin-bottom:8px;background:var(--bg)}
+.edc .ct{display:flex;align-items:center;margin-bottom:6px;font-size:12.5px;color:var(--mute)}
+.edc .ct button{margin-left:auto}
+.imp ol{margin:0 0 8px;padding-left:20px;font-size:13px;line-height:1.9}
+.imp textarea{width:100%;min-height:120px;font:12px/1.5 Consolas,monospace;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px}
+.imp .warnline{font-size:12px;color:var(--mute);margin:0 0 8px}
+.banner{border:1px solid var(--acc);background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+.banner .line{margin:8px 0 0}
 #handle{position:fixed;left:0;right:0;bottom:0;height:24px;pointer-events:none}
 #handle .strip{position:absolute;left:0;right:0;top:0;height:6px;background:var(--acc)}
 #handle .tab{position:absolute;left:50%;top:0;transform:translateX(-50%);width:150px;height:24px;border-radius:0 0 8px 8px;background:var(--acc);color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer}
 </style></head><body>
 <div id="app">
- <header class="pywebview-drag-region"><h1>今日投递</h1><span id="cnt"></span>
+ <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button></div><span id="cnt"></span>
   <button class="sm" data-a="hide" title="缩回顶边">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
  <div class="bar"><i id="bar"></i></div>
- <main><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></main>
+ <main id="main"><div id="jobs"><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
 </div>
 <div id="toast"></div>
 <div id="handle"><div class="strip"></div><div class="tab" data-a="hide" id="tab">投递</div></div>
 <script>
 const T=new URLSearchParams(location.search).get('t');
-let S=null,open=null,blockFor=null,pendReason=null,moreFields=false,quitArmed=false;
+let S=null,open=null,blockFor=null,pendReason=null,quitArmed=false;
+const LS={get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let TAB=LS.get('tab','jobs'),LANG=LS.get('lang','zh'),EDIT=null,IMP=null,PREV=null,OPENC={};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,body){
  const r=await fetch(path,{method:body?'POST':'GET',headers:{'X-T':T},body:body?JSON.stringify(body):undefined});
  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
 async function load(){S=await api('/api/state');render()}
-window.onShow=()=>load().catch(()=>{});
+window.onShow=()=>{if(!EDIT&&!IMP)load().catch(()=>{})};
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',err?4000:1600)}
 async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}if(msg)toast(msg);return true}catch(e){toast('出错：'+e.message,true);return false}}
 
@@ -98,19 +152,13 @@ function pill(j){
  if(j.left===null)return '<span class="pill">招满即止</span>';
  const t=j.left===0?'今天截止':j.left===1?'明天截止':j.date+' · 剩 '+j.left+' 天';
  return '<span class="pill '+(j.left<=1?'hot':'')+'">'+t+'</span>'}
-function short(f){let l=f.label.split(/\s+/)[0];if(f.sec.includes('本科'))l='本科·'+l;return l}
-function chip(f){return f.vals.map(v=>`<button class="chip" data-a="copy" data-v="${esc(v)}" data-l="${esc(f.label)}" title="${esc(f.tip||f.label)}"><small>${esc(short(f))}</small>${esc(v)}</button>`).join('')}
 function ex(j){
- const k=j.pool,prim=S.fields.filter(f=>f[k]!==null).sort((a,b)=>a[k]-b[k]),rest=S.fields.filter(f=>f[k]===null);
- let h=`<div class="ex"><div class="lab">点一下复制</div><div class="chips">${prim.map(chip).join('')}</div>`;
- h+=`<button class="lnk" data-a="morefields">${moreFields?'收起更多字段 ▴':'更多字段（'+rest.length+'） ▾'}</button>`;
- if(moreFields)h+=`<div class="chips" style="margin-top:6px">${rest.map(chip).join('')}</div>`;
- h+=`<div class="line"><span class="k">简历</span><button class="sm" data-a="res-copy">复制路径</button><button class="sm" data-a="res-view">预览</button></div>`;
+ let h=`<div class="ex"><div class="line"><span class="k">简历</span><button class="sm" data-a="res-copy">复制路径</button><button class="sm" data-a="res-view">预览</button><span class="lab" style="margin:0">资料去「我的资料」复制</span></div>`;
  if(j.need_cl){
   let c;if(j.cl.pdf)c='<button class="sm" data-a="cl-copy">复制路径</button><button class="sm" data-a="cl-edit">编辑</button>';
   else if(j.cl.md)c='<button class="sm" data-a="cl-edit">编辑</button><button class="sm" data-a="cl-pdf">生成 PDF</button>';
   else c='<button class="sm" data-a="cl-draft">起草</button>';
-  h+=`<div class="line"><span class="k">求职信</span>${c}${k==='cn'?'<button class="lnk" data-a="needcl" data-on="0">不需要</button>':''}</div>`;
+  h+=`<div class="line"><span class="k">求职信</span>${c}${j.pool==='cn'?'<button class="lnk" data-a="needcl" data-on="0">不需要</button>':''}</div>`;
  }else h+=`<div class="line"><span class="k">求职信</span><button class="lnk" data-a="needcl" data-on="1">这家需要求职信 →</button></div>`;
  h+=`<div class="act">${j.url?'<button class="p" data-a="url">打开投递页 ↗</button>':'<span class="nolink">无链接，需手动搜</span>'}
   <button class="ok" data-a="applied">已投</button><button data-a="later">稍后</button><button data-a="block">屏蔽 ${blockFor===j.id?'▴':'▾'}</button></div>`;
@@ -126,7 +174,91 @@ function row(j){
  return `<div class="row ${j.status} ${o?'open':''}" data-id="${esc(j.id)}">
  <div class="hd" data-a="toggle"><span class="dot ${dot(j)}"></span><span class="co">${esc(j.company)}</span>${pill(j)}${j.status!=='pending'?'<button class="sm" data-a="undo">撤销</button>':''}</div>
  <div class="ti">${esc(j.title)}</div>${meta?`<div class="meta">${esc(meta)}</div>`:''}${o?ex(j):''}</div>`}
+// ───────── 我的资料 ─────────
+const isEn=()=>LANG==='en';
+function fval(f,c){if(!c)return'';if(!f.bi)return c.zh||c.en||'';return (isEn()?c.en:c.zh)||''}
+function xval(x){return (isEn()&&x.en?x.en:x.zh)||x.en||''}
+function flab(f){return isEn()?f.en:f.zh}
+function isAI(c){return !!(c&&c.ai&&c.ai.includes(LANG))}
+function holders(P){return P.card?P.cards:[P]}
+function todoOf(P){let n=0;holders(P).forEach(h=>P.fields.forEach(f=>{if(!f.opt&&!fval(f,h.cells[f.key]))n++}));return n}
+function mask(v){return v.length<=4?'••••':v.slice(0,4)+'•'.repeat(Math.max(2,v.length-4))}
+function chipM(label,v,o){
+ o=o||{};
+ if(!v){return o.opt?'':`<span class="mk"><button class="chip todo" data-a="medit" data-part="${o.part}" title="点开编辑"><small>${esc(label)}</small>待补</button></span>`}
+ const shown=o.secret?mask(v):v,ai=o.ai&&!o.ro;
+ return `<span class="mk ${ai?'ai':''}"><button class="chip ${ai?'ai':''}" data-a="mcopy" data-v="${esc(v)}" data-l="${esc(label)}" title="${esc(o.note||label)}"><small>${esc(label)}</small>${esc(shown)}</button>${ai?`<button data-a="mok" ${o.ref}>AI 翻译 · 确认</button>`:''}</span>`}
+function fileChip(P,f,c){
+ const v=c.zh,ex=P.exists&&P.exists[f.key],name=v?v.split(/[\\/]/).pop():'';
+ if(!v)return f.opt?'':`<span class="mk"><button class="chip todo" data-a="medit" data-part="files"><small>${esc(flab(f))}</small>待补</button></span>`;
+ return `<div class="fl"><span class="k">${esc(flab(f))}</span><span class="v ${ex?'':'chip warn'}" title="${esc(v)}">${ex?esc(name):'找不到文件：'+esc(name)}</span><button class="sm" data-a="fcopy" data-k="${f.key}">复制路径</button><button class="sm" data-a="fview" data-k="${f.key}">预览</button></div>`}
+function cellsHTML(P,h,ro,ci){
+ let out='',desc='';
+ P.fields.forEach(f=>{
+  const c=h.cells[f.key]||{zh:'',en:''},v=fval(f,c);
+  const ref=`data-part="${P.key}" data-field="${f.key}" ${ci!=null?`data-card="${ci}"`:''}`;
+  if(P.key==='files'){out+=fileChip(P,f,c);return}
+  if(f.multi){
+   if(!v){if(!f.opt)desc+=chipM(flab(f),'',{part:P.key});return}
+   desc+=`<button class="desc ${isAI(c)&&!ro?'ai':''}" data-a="mcopy" data-v="${esc(v)}" data-l="${esc(flab(f))}"><small>${esc(flab(f))} · 点一下复制整段</small>${esc(v.split('\n').map(x=>'· '+x).join('\n'))}</button>`;
+   if(isAI(c)&&!ro)desc+=`<span class="mk"><button data-a="mok" ${ref} class="sm">AI 翻译 · 确认</button></span>`;return}
+  out+=chipM(flab(f),v,{opt:f.opt,secret:f.secret,ai:isAI(c),ro,note:c.note,part:P.key,ref})});
+ (h.extra||[]).forEach((x,i)=>{const v=xval(x);if(v)out+=chipM(x.label,v,{ai:isAI(x),ro,note:x.note,part:P.key,ref:`data-part="${P.key}" data-extra="${i}" ${ci!=null?`data-card="${ci}"`:''}`})});
+ return out+(desc?`<div style="margin-top:2px">${desc}</div>`:'')}
+function cardTitle(P,c){const k=P.key==='work'?'company':'school',s=c.cells[k]||{};return (isEn()?s.en||s.zh:s.zh||s.en)||'（未命名）'}
+function partHTML(P,ro){
+ if(!ro&&EDIT&&EDIT.part===P.key)return editHTML(P);
+ const n=todoOf(P),btns=ro?'':(P.card?`<button class="sm" data-a="medit" data-part="${P.key}" data-add="1">+ 加一段</button>`:'')+`<button class="sm" data-a="medit" data-part="${P.key}">编辑</button>`;
+ let h=`<section class="part" id="p-${P.key}"><h3><span class="n">${S.me.parts.findIndex(x=>x.key===P.key)+1}</span>${esc(P.zh)}${isEn()?`<small style="font:400 12px sans-serif;color:var(--mute)">${esc(P.en)}</small>`:''}<span class="r">${btns}</span></h3>`;
+ if(P.card){
+  if(!P.cards.length)h+=`<div class="lab">还没有${esc(P.zh)}，点右上角「+ 加一段」，或者用「导入简历」</div>`;
+  P.cards.forEach((c,i)=>{const id=P.key+i,op=OPENC[id]!==undefined?OPENC[id]:i===0,t=todoOf({fields:P.fields,card:false,cells:c.cells});
+   const se=[(c.cells.start||{}).zh,(c.cells.end||{}).zh].filter(Boolean).join(' ~ ');
+   h+=`<div class="mcard"><div class="ct" data-a="mcard" data-id="${id}" data-def="${i===0?1:0}"><b>${esc(cardTitle(P,c))}</b><span>${esc(se)}</span>${t?`<i>待补 ${t}</i>`:''}<span style="margin-left:${t?'8px':'auto'}">${op?'▴':'▾'}</span></div>${op?`<div class="body">${cellsHTML(P,c,ro,i)}</div>`:''}</div>`})
+ }else h+=cellsHTML(P,P,ro);
+ return h+'</section>'}
+function editHTML(P){
+ const D=EDIT.data,row=(f,base,c)=>{
+  const ph=f.path?'文件完整路径，比如 D:/简历/resume.pdf':'';
+  const inp=(lang)=>f.multi?`<textarea data-p="${base}.${f.key}.${lang}" placeholder="一行一条">${esc(c[lang]||'')}</textarea>`:`<input type="text" data-p="${base}.${f.key}.${lang}" value="${esc(c[lang]||'')}" placeholder="${ph||(lang==='zh'?(f.bi?'中文':''):'English')}">`;
+  return `<span class="k ${f.opt?'':'req'}" title="${esc(c.note||'')}">${esc(f.zh)}</span>${f.bi?inp('zh')+inp('en'):`<span style="grid-column:span 2">${inp('zh')}</span>`}`};
+ const block=(h,base)=>`<div class="ed"><span></span><span class="h">中文</span><span class="h">English</span>${P.fields.map(f=>row(f,base+'.cells',h.cells[f.key]||{zh:'',en:''})).join('')}${(h.extra||[]).map((x,i)=>`<span class="k" title="${esc(x.note||'')}">${esc(x.label)}</span><input type="text" data-p="${base}.extra.${i}.zh" value="${esc(x.zh||'')}"><input type="text" data-p="${base}.extra.${i}.en" value="${esc(x.en||'')}">`).join('')}</div>`;
+ let h=`<section class="part" id="p-${P.key}"><h3>${esc(P.zh)} · 编辑<span class="r"><button class="p sm" data-a="msave">保存</button><button class="sm" data-a="mcancel">取消</button></span></h3>`;
+ if(P.card){D.cards.forEach((c,i)=>{h+=`<div class="edc"><div class="ct">第 ${i+1} 段<button class="sm" data-a="mdel" data-i="${i}">删除这段</button></div>${block(c,'cards.'+i)}</div>`});
+  h+=`<button class="sm" data-a="madd">+ 再加一段</button>`}
+ else h+=block(D,'');
+ return h+`<div class="lab" style="margin-top:8px">带 * 的是网申常问的；中英文都填，香港岗显示英文、大陆岗显示中文。改过的格子会自动去掉「AI 翻译」标记。</div></section>`}
+function importHTML(){
+ if(IMP.step==='paste')return `<section class="part imp"><h3>导入简历<span class="r"><button class="sm" data-a="impcancel">取消</button></span></h3>
+ <ol><li>点这里复制 prompt：<button class="p sm" data-a="impcopy">复制 prompt</button></li>
+ <li>打开任意 AI（ChatGPT、豆包、Kimi、DeepSeek…），粘贴 prompt，再把<b>简历全文</b>贴在最后，发送</li>
+ <li>把 AI 的回复<b>整段</b>粘贴到下面，点「识别」</li></ol>
+ <p class="warnline">提醒：简历发给哪个 AI，就等于把内容交给了那家公司；证件号这类信息可以先从简历里删掉。识别结果会先给你过目，确认了才保存；签证答法这类简历里没有的，会保留你原来填的。</p>
+ <textarea id="imptext" placeholder="把 AI 回复（包括 \`\`\`json 那几行）粘贴到这里">${esc(IMP.text||'')}</textarea>
+ <div class="line"><button class="p" data-a="impparse">识别</button></div></section>`;
+ return ''}
+function renderMe(){
+ const el=$('#me');
+ const src=PREV||S.me,parts=src.parts;
+ let tool=`<div class="mtool"><div class="seg"><button data-a="lang" data-l="zh" class="${isEn()?'':'on'}">中文</button><button data-a="lang" data-l="en" class="${isEn()?'on':''}">English</button></div><span class="file" title="${esc(S.me.file)}">${S.me.found?'资料文件：'+esc(S.me.file.split(/[\\/]/).pop())+'（鼠标停在这里看完整路径）':'还没有资料文件：点「导入简历」，或者直接点各部分的「编辑」开始填'}</span>${PREV||IMP?'':'<button class="p sm" data-a="impopen">导入简历</button>'}</div>`;
+ let body='';
+ if(IMP&&IMP.step==='paste')body=importHTML();
+ if(PREV){const st=IMP.stats,tz=Object.values(IMP.todo[LANG]).reduce((a,b)=>a+b,0);
+  body+=`<div class="banner">识别出 <b>${st.filled}</b> 个字段，其中 <b>${st.ai}</b> 处是 AI 翻译的（虚线框，保存后记得核对），${isEn()?'英文':'中文'}还有 <b>${tz}</b> 项待补。下面是导入后的样子，确认没问题再保存。
+  <div class="line"><button class="p" data-a="impsave">保存</button><button data-a="impback">返回修改</button><button data-a="impcancel">放弃</button></div></div>`}
+ const nav=parts.map((P,i)=>{const n=todoOf(P);return `<a data-a="mjump" data-k="${P.key}">${i+1} ${esc(P.zh)}${n?`<em>${n}</em>`:''}</a>`}).join('');
+ el.innerHTML=tool+body+`<div class="me"><nav class="mnav">${nav}<div class="hint">黄色数字 = 待补几项<br>点资料方块就复制</div></nav><div>${parts.map(P=>partHTML(P,!!PREV)).join('')}</div></div>`}
+function setPath(o,p,v){const ks=p.split('.').filter(Boolean);let x=o;ks.slice(0,-1).forEach(k=>{if(x[k]==null)x[k]=/^\d+$/.test(k)?[]:{};x=x[k]});x[ks[ks.length-1]]=v}
+function startEdit(key,add){
+ const P=S.me.parts.find(x=>x.key===key),cp=o=>JSON.parse(JSON.stringify(o));
+ EDIT={part:key,data:P.card?{cards:P.cards.map((c,i)=>({from:i,cells:cp(c.cells),extra:cp(c.extra||[])}))}:{cells:cp(P.cells),extra:cp(P.extra||[])}};
+ if(add)EDIT.data.cards.unshift({cells:{},extra:[]});
+ render();const el=$('#p-'+key);el&&el.scrollIntoView({block:'start'})}
+
 function render(){
+ $('#tjobs').className=TAB==='jobs'?'on':'';$('#tme').className=TAB==='me'?'on':'';
+ $('#jobs').style.display=TAB==='jobs'?'':'none';$('#me').style.display=TAB==='me'?'block':'none';
+ if(TAB==='me'){renderMe()}
  const js=S.jobs,c={pending:0,applied:0,later:0,blocked:0};js.forEach(j=>c[j.status]++);
  const den=c.pending+c.applied;
  $('#cnt').textContent=`待投 ${c.pending} · 稍后 ${c.later} · 已投 ${c.applied} · 屏蔽 ${c.blocked}`;
@@ -151,9 +283,28 @@ document.addEventListener('click',async e=>{
  const a=el.dataset.a,r=el.closest('.row'),id=r&&r.dataset.id;
  if(a!=='quit'&&quitArmed){quitArmed=false;$('#quitbtn').textContent='退出'}
  switch(a){
- case'toggle':open=open===id?null:id;blockFor=pendReason=null;render();break;
- case'morefields':moreFields=!moreFields;render();break;
+ case'toggle':open=open===id?null:id;blockFor=pendReason=null;
+  {const j=S.jobs.find(x=>x.id===id);if(open&&j){LANG=j.pool==='hk'?'en':'zh';LS.set('lang',LANG)}}render();break;
  case'copy':post('/api/clip',{text:el.dataset.v},'已复制：'+el.dataset.l);break;
+ case'tab':TAB=el.dataset.t;LS.set('tab',TAB);render();$('#main').scrollTop=0;break;
+ case'lang':LANG=el.dataset.l;LS.set('lang',LANG);render();break;
+ case'mcopy':post('/api/clip',{text:el.dataset.v},'已复制：'+el.dataset.l);break;
+ case'mjump':{const t=$('#p-'+el.dataset.k);t&&t.scrollIntoView({block:'start',behavior:'smooth'});break}
+ case'mcard':{const d=el.dataset;OPENC[d.id]=!(OPENC[d.id]!==undefined?OPENC[d.id]:d.def==='1');render();break}
+ case'medit':if(PREV)break;startEdit(el.dataset.part,!!el.dataset.add);break;
+ case'mcancel':EDIT=null;render();break;
+ case'madd':EDIT.data.cards.push({cells:{},extra:[]});render();break;
+ case'mdel':EDIT.data.cards.splice(+el.dataset.i,1);render();break;
+ case'msave':{const ed=EDIT;if(await post('/api/me/save',{part:ed.part,data:ed.data},'已保存')&&EDIT===ed){EDIT=null;render()}break}
+ case'mok':{const b=el.dataset;await post('/api/me/confirm',{part:b.part,field:b.field||null,lang:LANG,card:b.card!=null?+b.card:null,extra:b.extra!=null?+b.extra:null},'已确认');break}
+ case'fcopy':post('/api/clip',{what:'file',key:el.dataset.k},'已复制路径，去上传框里 Ctrl+V');break;
+ case'fview':post('/api/open',{what:'file',key:el.dataset.k});break;
+ case'impopen':IMP={step:'paste',text:''};EDIT=null;render();break;
+ case'impcopy':post('/api/clip',{text:S.import_prompt},'已复制 prompt，去 AI 那里粘贴，再贴上简历');break;
+ case'impparse':{IMP.text=$('#imptext').value;try{const r=await api('/api/me/parse',{text:IMP.text});PREV=r.preview;IMP.stats=r.stats;IMP.todo=r.todo;IMP.step='preview';render();$('#main').scrollTop=0}catch(e){toast(e.message,true)}break}
+ case'impback':PREV=null;IMP.step='paste';render();break;
+ case'impcancel':PREV=null;IMP=null;render();break;
+ case'impsave':if(await post('/api/me/import',{},'已保存，记得核对虚线框里的 AI 翻译')){PREV=null;IMP=null;render()}break;
  case'res-copy':post('/api/clip',{id,what:'resume'},'已复制简历路径，去上传框里 Ctrl+V');break;
  case'res-view':post('/api/open',{id,what:'resume'});break;
  case'cl-copy':post('/api/clip',{id,what:'cl'},'已复制求职信路径');break;
@@ -173,8 +324,9 @@ document.addEventListener('click',async e=>{
  case'hide':post('/api/dock',{op:'hide'});break;
  case'quit':if(quitArmed)post('/api/dock',{op:'quit'});else{quitArmed=true;el.textContent='再点一次退出'}break;
  }});
-document.addEventListener('focusin',e=>{if(e.target.matches('input'))api('/api/hold',{on:true}).catch(()=>{})});
-document.addEventListener('focusout',e=>{if(e.target.matches('input'))api('/api/hold',{on:false}).catch(()=>{})});
+document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value});
+document.addEventListener('focusin',e=>{if(e.target.matches('input,textarea'))api('/api/hold',{on:true}).catch(()=>{})});
+document.addEventListener('focusout',e=>{if(e.target.matches('input,textarea'))api('/api/hold',{on:false}).catch(()=>{})});
 load().catch(e=>toast('加载失败：'+e.message,true));
-setInterval(()=>load().catch(()=>{}),300000);
+setInterval(()=>{if(!EDIT&&!IMP)load().catch(()=>{})},300000);
 </script></body></html>

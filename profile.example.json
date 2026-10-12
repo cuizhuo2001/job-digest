@@ -1,29 +1,13 @@
 {
  "_说明": "复制成 profile.json 再改（profile.json 不进 git）。面板的简历按钮、速查卡、求职信起草都读这里；相对路径按仓库根目录算",
-
  "name": "Tai Man CHAN",
  "email": "taiman.chan@example.com",
  "phone": "+852 5123 4567",
  "graduation": "June 2027",
  "available_from": "July 2027",
- "_字段说明": "除了下面几个路径字段，这里写的任何文字字段都能在求职信模板里用 {字段名} 引用",
-
- "resume": {"hk": "简历/Resume_HK.pdf", "cn": "简历/简历_大陆.pdf"},
- "_resume说明": "香港岗 / 大陆岗各用哪份简历，面板里一键复制路径、预览",
-
- "card_path": "templates/填表速查卡.example.md",
- "_card_path说明": "网申填表速查卡，格式照 templates/填表速查卡.example.md：「## 分区」+「| 字段 | 填什么 |」表格，值写在反引号里，面板点一下就复制",
-
- "card_fields": {
-  "hk": [["身份", "全名 English Full Name"], ["联系", "邮箱（主）"], ["联系", "手机（香港）"],
-         ["硕士", "学校（英）"], ["硕士", "专业（英）"], ["硕士", "毕业时间"], ["语言", "雅思总分"],
-         ["签证", "标准英文答法"]],
-  "cn": [["身份", "姓名（中文）"], ["联系", "邮箱（主）"], ["联系", "手机（大陆）"], ["硕士", "学校（中）"],
-         ["硕士", "专业（中）"], ["硕士", "毕业时间"], ["本科", "学校（中）"], ["语言", "六级 CET-6"],
-         ["大陆", "政治面貌"]]
- },
- "_card_fields说明": "投香港岗 / 大陆岗时默认摆出来的字段：[分区关键词, 字段名]，其余收进「更多字段」。不写就用内置默认",
-
+ "_字段说明": "name / email / phone / graduation / available_from 给求职信模板用（{name} 这样引用）；填表资料在 card_path 那份速查卡里",
+ "card_path": "填表速查卡.md",
+ "_card_path说明": "「我的资料」那份填表速查卡（8 个部分：基本信息、联系方式、教育、工作实习、语言技能、求职意向、签证问答、附件）。没有这个文件也没关系：在面板「我的资料」里点「导入简历」或「编辑」会自动建。格式见 templates/填表速查卡.example.md。简历、成绩单的路径填在它的「附件」部分",
  "cover_letter_dir": "cover_letters",
  "cover_letter_template": "templates/cover_letter.example.md",
  "_cover_letter说明": "面板「起草求职信」按模板生成 md 到 cover_letter_dir；「生成 PDF」要装 python-docx + Microsoft Word"
