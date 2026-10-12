@@ -65,23 +65,25 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 
 ## 岗位数据从哪来
 
-三个来源，在 `config.json` 的 `pool_path`（大陆）/ `pool_path_hk`（香港）里按顺序列出，同一个岗位出现在多个来源时留前面那条：
+四类来源，在 `config.json` 的 `pool_path`（大陆）/ `pool_path_hk`（香港）里按顺序列出，同一个岗位出现在多个来源时留前面那条：
 
 | 来源 | 文件 | 怎么更新 |
 |---|---|---|
+| 🇨🇳 **大陆关注公司自动查岗** | `data/cn_watch.csv`（香港岗进 `data/cn_watch_hk.csv`） | 每次推送前去 `watchlist_cn.json` 里的公司官网（中信、中金、华泰、招商、广发）拿校园招聘岗位，只留工作地在 `allowed_cities` 里的，全是岗位直链，带官网截止日 |
 | 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
 | 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 17 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
 | 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 29 条（见下一节），不自动更新 |
 | ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py` |
 
-两个自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。
+自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。
 
-**大陆岗位库的局限**：上游维护者手动同步，不是每天更新（简报会显示数据日期，超过 5 天会提醒）；一条记录常是一家公司的整份校招公告，链接多是公司校招首页，投之前要在官网里找具体岗位。
+**大陆岗位库的局限**：上游维护者手动同步，不是每天更新（简报会显示数据日期，超过 5 天会提醒）；一条记录常是一家公司的整份校招公告，链接多是公司校招首页，投之前要在官网里找具体岗位。重点公司建议加进 `watchlist_cn.json` 直接查官网：支持 Hotjob（网址 `wecruit.hotjob.cn/SU…/pb/school.html`）、北森（`*.zhiye.com`）、Workday、Oracle，以及中信证券官网。
 
 **关注公司**：支持三种招聘系统 —— Workday（`*.myworkdayjobs.com`）、Oracle（`*.oraclecloud.com`）、北森（`*.zhiye.com`）。默认 17 家：德银、大华、三菱日联、花旗、摩根士丹利、贝莱德、道富、景顺、宏利、友邦、永明、万事达、耐克、摩根大通、施罗德、中金、中信建投国际。想加公司，打开它的招聘官网看网址属于哪种，照格式往 `watchlist_hk.json` 里加一条，然后：
 
 ```bash
 python tools/watch_hk.py --only 公司名 --dry    # 只查这一家，看能不能查到
+python tools/watch_cn.py --only 公司名 --dry    # 大陆关注公司同理
 ```
 
 关注公司**第一次**挂出来的岗位，简报里会单独列在「🆕 关注公司新挂出 N 个岗位」。
@@ -219,6 +221,7 @@ tools/
   refresh.py          刷新数据源
   import_cn.py        大陆岗位库导入
   watch_hk.py         香港关注公司查岗
+  watch_cn.py         大陆关注公司查岗（Hotjob / 中信官网 / 北森…）
   add_job.py          手动补录
   apply_popup.py/.html  投递面板（Windows）
   profile_card.py     「我的资料」：速查卡读写、导入简历的 prompt 和识别

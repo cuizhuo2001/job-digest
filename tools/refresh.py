@@ -23,8 +23,10 @@ import jdlib  # noqa: E402
 import pool  # noqa: E402
 import import_cn  # noqa: E402
 import watch_hk  # noqa: E402
+import watch_cn  # noqa: E402
 
-SOURCES = (("cn_import", "大陆岗位库", import_cn), ("hk_watch", "香港关注公司", watch_hk))
+SOURCES = (("cn_import", "大陆岗位库", import_cn), ("hk_watch", "香港关注公司", watch_hk),
+           ("cn_watch", "大陆关注公司", watch_cn))
 
 
 def due(path, hours):

@@ -370,7 +370,8 @@ def select(cfg, now=None):
     q_cn = int(cfg.get("daily_quota_cn", cfg.get("daily_quota", 10)))
     cn = _filter_rows(load_pool(cfg["pool_path"]), cfg, now,
                       cities=cfg.get("allowed_cities") or [],
-                      excl=cfg.get("exclude_title") or [], quota=q_cn, dirs=dirs)
+                      excl=cfg.get("exclude_title") or [], quota=q_cn, dirs=dirs,
+                      excl_type=tuple(cfg.get("exclude_type") or ()))
     _pick_today(cn, dirs, "cn", q_cn)
 
     hk = None

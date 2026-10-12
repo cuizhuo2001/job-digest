@@ -17,7 +17,6 @@
   {"name": "耐克 Nike", "system": "workday", "host": "nike.wd1.myworkdayjobs.com", "tenant": "nike", "site": "nke", "industry": "零售/消费品"},
   {"name": "摩根大通 J.P. Morgan", "system": "oracle", "host": "jpmc.fa.oraclecloud.com", "site": "CX_1001", "industry": "银行"},
   {"name": "施罗德 Schroders", "system": "oracle", "host": "ekbq.fa.em2.oraclecloud.com", "site": "CX_2", "industry": "资产管理"},
-  {"name": "中金 CICC", "system": "beisen", "host": "cicc.zhiye.com", "detail": "https://cicc.zhiye.com/custom/campusxq?jc=2&hideMenu=1&jobAdId={id}", "industry": "证券"},
   {"name": "中信建投国际 CSCI", "system": "beisen", "host": "cscihk.zhiye.com", "industry": "证券"}
  ]
 }

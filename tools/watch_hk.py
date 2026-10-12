@@ -71,7 +71,7 @@ def job_type(title):
 
 # ───────────────────────── 三种招聘系统 ─────────────────────────
 
-def workday(c, keywords):
+def workday(c, keywords, want=is_hk):
     base = "https://%s/wday/cxs/%s/%s" % (c["host"], c["tenant"], c["site"])
     found = {}
     for kw in keywords:
@@ -94,14 +94,14 @@ def workday(c, keywords):
             locs = [info.get("location")] + list(info.get("additionalLocations") or [])
         else:
             locs = [loc]
-        if not is_hk(*locs):
+        if not want(*locs):
             continue
-        out.append({"key": path, "title": title, "type": typ, "posted": p.get("postedOn") or "",
+        out.append({"key": path, "title": title, "type": typ, "posted": p.get("postedOn") or "", "locs": locs,
                     "url": "https://%s/%s%s" % (c["host"], c["site"], path)})
     return out
 
 
-def oracle(c, keywords):
+def oracle(c, keywords, want=is_hk):
     found = {}
     for kw in keywords:
         url = ("https://%s/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true"
@@ -115,14 +115,14 @@ def oracle(c, keywords):
         title = r.get("Title") or ""
         typ = job_type(title)
         locs = [r.get("PrimaryLocation")] + [x.get("Name") for x in (r.get("secondaryLocations") or [])]
-        if not typ or not is_hk(*locs):
+        if not typ or not want(*locs):
             continue
-        out.append({"key": rid, "title": title, "type": typ, "posted": r.get("PostedDate") or "",
+        out.append({"key": rid, "title": title, "type": typ, "posted": r.get("PostedDate") or "", "locs": locs,
                     "url": "https://%s/hcmUI/CandidateExperience/en/sites/%s/job/%s" % (c["host"], c["site"], rid)})
     return out
 
 
-def beisen(c, keywords):
+def beisen(c, keywords, want=is_hk):
     url = "https://%s/api/Jobad/GetJobAdPageList" % c["host"]
     detail = c.get("detail") or ("https://%s/campus/detail?jobAdId={id}" % c["host"])
     rows, page = [], 0
@@ -136,12 +136,17 @@ def beisen(c, keywords):
             break
     out = []
     for r in rows:
-        cat, title = r.get("Category") or "", r.get("JobAdName") or ""
-        typ = "实习" if "实习" in cat else "校招" if "校园" in cat or "校招" in cat else ""
-        if not typ or not is_hk(*(r.get("LocNames") or [])):
+        cat, title = r.get("Category") or "", " ".join((r.get("JobAdName") or "").split())
+        # 「校园招聘/暑期实习」这种混在一起的类别：标题里没写实习的算校招
+        if "校园" in cat or "校招" in cat:
+            typ = "实习" if INTERN.search(title) else "校招"
+        else:
+            typ = "实习" if "实习" in cat else ""
+        locs = r.get("LocNames") or []
+        if not typ or not want(*locs):
             continue
         end = (r.get("EndTime") or "")[:10]
-        out.append({"key": r["Id"], "title": title, "type": typ, "posted": (r.get("PostDate") or "")[:10],
+        out.append({"key": r["Id"], "title": title, "type": typ, "posted": (r.get("PostDate") or "")[:10], "locs": locs,
                     "deadline": "" if end.startswith("0001") else end, "url": detail.format(id=r["Id"])})
     return out
 

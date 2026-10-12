@@ -1,12 +1,12 @@
 {
  "_说明": "复制成 config.json 再改（config.json 不进 git）。改这里不用改代码。相对路径按仓库根目录算",
 
- "pool_path": ["data/cn_import.csv", "data/manual_cn.csv"],
- "pool_path_hk": ["examples/pool_hk_2027.csv", "data/hk_watch.csv", "data/manual_hk.csv"],
+ "pool_path": ["data/cn_watch.csv", "data/cn_import.csv", "data/manual_cn.csv"],
+ "pool_path_hk": ["examples/pool_hk_2027.csv", "data/hk_watch.csv", "data/cn_watch_hk.csv", "data/manual_hk.csv"],
  "_pool说明": "大陆池 / 香港池，可以写一个或多个 CSV（字段见 README），前面的优先：重复岗位留前面那条。data/ 下的文件由下面的 sources 和 tools/add_job.py 自动生成。只想离线试试，把 pool_path 换成 examples/pool_cn.example.csv",
 
- "sources": {"cn_import": {"enabled": true}, "hk_watch": {"enabled": true}, "refresh_hours": 20},
- "_sources说明": "每次推送前自动刷新（输出文件超过 refresh_hours 小时才刷）。cn_import = 下载 job-autopilot 公开的大陆 2027 秋招岗位库；hk_watch = 按 watchlist_hk.json 去关注公司的招聘系统查香港校招岗。手动刷新：python tools/refresh.py --force",
+ "sources": {"cn_import": {"enabled": true}, "hk_watch": {"enabled": true}, "cn_watch": {"enabled": true}, "refresh_hours": 20},
+ "_sources说明": "每次推送前自动刷新（输出文件超过 refresh_hours 小时才刷）。cn_import = 下载 job-autopilot 公开的大陆 2027 秋招岗位库；hk_watch = 按 watchlist_hk.json 去关注公司的招聘系统查香港校招岗；cn_watch = 按 watchlist_cn.json 去大陆关注公司（中信、中金、华泰、招商、广发）官网查校招岗，只留 allowed_cities 里的城市，香港岗自动进香港池。手动刷新：python tools/refresh.py --force",
 
  "out_md": "今日投递清单.md",
  "_out_md说明": "每天推送时顺手写一份带完整链接的清单，留空就不写",
@@ -33,7 +33,8 @@
  "_exclude_title_hk说明": "香港池：标题命中就跳过。⚠️ Summer Analyst / Summer Internship 是暑期实习管道，招的是比你晚一届的人，港硕一年制基本赶不上",
 
  "exclude_type_hk": ["社招", "实习", "代理人招募"],
- "_exclude_type_hk说明": "香港池按 type 列剔除：社招要 1–10 年经验，代理人招募是保险/理财顾问",
+ "exclude_type": ["实习"],
+ "_exclude_type_hk说明": "香港池按 type 列剔除：社招要 1–10 年经验，代理人招募是保险/理财顾问；exclude_type 是大陆池的（默认不推实习，想投实习就删掉）",
 
  "exclude_industry": [],
  "exclude_company": [],

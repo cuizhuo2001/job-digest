@@ -1,0 +1,11 @@
+{
+ "_说明": "大陆「关注公司」清单：tools/watch_cn.py 每天去这些公司官网的招聘系统拿校园招聘岗位。工作地在 config.json 的 allowed_cities 里的进大陆池（想单独设就写 sources.cn_watch.cities），在香港的进香港池。支持的系统：hotjob（网址是 wecruit.hotjob.cn/SU开头一串/pb/school.html 的，suite 填 SU 那串）、citics（中信证券官网）、beisen（北森 *.zhiye.com），以及 workday / oracle（同香港清单）。想加公司：打开它的校园招聘官网，看网址属于哪一种，照下面的格式补一条",
+
+ "companies": [
+  {"name": "中信证券", "system": "citics", "industry": "证券"},
+  {"name": "中金 CICC", "system": "beisen", "host": "cicc.zhiye.com", "detail": "https://cicc.zhiye.com/custom/campusxq?jc=2&hideMenu=1&jobAdId={id}", "industry": "证券"},
+  {"name": "华泰证券", "system": "hotjob", "suite": "SU5d4bd89a9b0d7889b8422dbe", "industry": "证券"},
+  {"name": "招商证券", "system": "hotjob", "suite": "SU629dbc0c0dcad452299bc0f7", "industry": "证券"},
+  {"name": "广发证券", "system": "hotjob", "suite": "SU625527c30dcad4021443cdda", "industry": "证券"}
+ ]
+}
