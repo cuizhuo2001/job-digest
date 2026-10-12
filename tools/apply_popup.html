@@ -100,7 +100,13 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .desc small{display:block;color:var(--mute);font-size:11px;margin-bottom:2px}
 .desc.ai{border-color:var(--acc)}
 .fl{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12.5px}
-.fl .k{color:var(--mute);width:72px;flex:none}
+.fl .k{color:var(--mute);width:150px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl .fb{font-size:10.5px;color:var(--mute);border:1px solid var(--line);border-radius:5px;padding:0 4px;margin-left:6px}
+.fls{margin-top:4px}
+button.addf{display:block;margin:2px 0 6px;font-size:12px;color:var(--mute);border:1px dashed var(--line);border-radius:8px;padding:3px 10px}
+button.addf:hover{color:var(--acc);border-color:var(--acc)}
+.pi{display:flex;gap:4px;min-width:0}
+.pi input{flex:1}
 .fl .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ed{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1fr);gap:5px 8px;align-items:center;font-size:12.5px;margin-bottom:8px}
 .ed .k{color:var(--mute)}
@@ -191,23 +197,26 @@ function chipM(label,v,o){
  if(!v){return o.opt?'':`<span class="mk"><button class="chip todo" data-a="medit" data-part="${o.part}" title="点开编辑"><small>${esc(label)}</small>待补</button></span>`}
  const shown=o.secret?mask(v):v,ai=o.ai&&!o.ro;
  return `<span class="mk ${ai?'ai':''}"><button class="chip ${ai?'ai':''}" data-a="mcopy" data-v="${esc(v)}" data-l="${esc(label)}" title="${esc(o.note||label)}"><small>${esc(label)}</small>${esc(shown)}</button>${ai?`<button data-a="mok" ${o.ref}>AI 翻译 · 确认</button>`:''}</span>`}
-function fileChip(P,f,c){
- const v=c.zh,ex=P.exists&&P.exists[f.key],name=v?v.split(/[\\/]/).pop():'';
- if(!v)return f.opt?'':`<span class="mk"><button class="chip todo" data-a="medit" data-part="files"><small>${esc(flab(f))}</small>待补</button></span>`;
- return `<div class="fl"><span class="k">${esc(flab(f))}</span><span class="v ${ex?'':'chip warn'}" title="${esc(v)}">${ex?esc(name):'找不到文件：'+esc(name)}</span><button class="sm" data-a="fcopy" data-k="${f.key}">复制路径</button><button class="sm" data-a="fview" data-k="${f.key}">预览</button></div>`}
+function pathOf(f,c){if(!f.bi)return {v:c.zh||'',l:'zh'};const a=isEn()?'en':'zh',b=isEn()?'zh':'en';return c[a]?{v:c[a],l:a}:{v:c[b]||'',l:b,fb:!!c[b]}}
+function fileChip(P,f,c,h,ci){
+ const p=pathOf(f,c),ex=((h.exists||{})[f.key]||{})[p.l],name=p.v?p.v.split(/[\\/]/).pop():'';
+ if(!p.v)return f.opt?'':`<span class="mk"><button class="chip todo" data-a="medit" data-part="${P.key}"><small>${esc(flab(f))}</small>待补</button></span>`;
+ const ref=`data-part="${P.key}" data-k="${f.key}" data-lang="${p.l}" ${ci!=null?`data-card="${ci}"`:''}`;
+ return `<div class="fl"><span class="k" title="${esc(flab(f))}">${esc(flab(f))}</span><span class="v ${ex?'':'chip warn'}" title="${esc(p.v)}">${ex?esc(name):'找不到文件：'+esc(name)}${p.fb?`<span class="fb">只有${p.l==='zh'?'中文版':'英文版'}</span>`:''}</span><button class="sm" data-a="fcopy" ${ref}>复制路径</button><button class="sm" data-a="fview" ${ref}>预览</button></div>`}
 function cellsHTML(P,h,ro,ci){
- let out='',desc='';
+ let out='',desc='',fl='',paths=0;
  P.fields.forEach(f=>{
   const c=h.cells[f.key]||{zh:'',en:''},v=fval(f,c);
   const ref=`data-part="${P.key}" data-field="${f.key}" ${ci!=null?`data-card="${ci}"`:''}`;
-  if(P.key==='files'){out+=fileChip(P,f,c);return}
+  if(f.path){paths++;fl+=fileChip(P,f,c,h,ci);return}
   if(f.multi){
    if(!v){if(!f.opt)desc+=chipM(flab(f),'',{part:P.key});return}
    desc+=`<button class="desc ${isAI(c)&&!ro?'ai':''}" data-a="mcopy" data-v="${esc(v)}" data-l="${esc(flab(f))}"><small>${esc(flab(f))} · 点一下复制整段</small>${esc(v.split('\n').map(x=>'· '+x).join('\n'))}</button>`;
    if(isAI(c)&&!ro)desc+=`<span class="mk"><button data-a="mok" ${ref} class="sm">AI 翻译 · 确认</button></span>`;return}
   out+=chipM(flab(f),v,{opt:f.opt,secret:f.secret,ai:isAI(c),ro,note:c.note,part:P.key,ref})});
  (h.extra||[]).forEach((x,i)=>{const v=xval(x);if(v)out+=chipM(x.label,v,{ai:isAI(x),ro,note:x.note,part:P.key,ref:`data-part="${P.key}" data-extra="${i}" ${ci!=null?`data-card="${ci}"`:''}`})});
- return out+(desc?`<div style="margin-top:2px">${desc}</div>`:'')}
+ if(P.card&&paths&&!fl&&!ro)fl=`<button class="addf" data-a="medit" data-part="${P.key}">＋ 添加证明材料（${P.fields.filter(f=>f.path).map(f=>esc(flab(f))).join('、')}）</button>`;
+ return out+(desc?`<div style="margin-top:2px">${desc}</div>`:'')+(fl?`<div class="fls">${fl}</div>`:'')}
 function cardTitle(P,c){const k=P.key==='work'?'company':'school',s=c.cells[k]||{};return (isEn()?s.en||s.zh:s.zh||s.en)||'（未命名）'}
 function partHTML(P,ro){
  if(!ro&&EDIT&&EDIT.part===P.key)return editHTML(P);
@@ -222,8 +231,11 @@ function partHTML(P,ro){
  return h+'</section>'}
 function editHTML(P){
  const D=EDIT.data,row=(f,base,c)=>{
-  const ph=f.path?'文件完整路径，比如 D:/简历/resume.pdf':'';
-  const inp=(lang)=>f.multi?`<textarea data-p="${base}.${f.key}.${lang}" placeholder="一行一条">${esc(c[lang]||'')}</textarea>`:`<input type="text" data-p="${base}.${f.key}.${lang}" value="${esc(c[lang]||'')}" placeholder="${ph||(lang==='zh'?(f.bi?'中文':''):'English')}">`;
+  const ph=f.path?(f.bi?(lang=>lang==='zh'?'中文版文件路径（可不填）':'英文版文件路径（可不填）'):()=>'文件完整路径，比如 D:/简历/resume.pdf'):null;
+  const inp=(lang)=>{const dp=`${base}.${f.key}.${lang}`;
+   if(f.multi)return `<textarea data-p="${dp}" placeholder="一行一条">${esc(c[lang]||'')}</textarea>`;
+   const box=`<input type="text" data-p="${dp}" value="${esc(c[lang]||'')}" placeholder="${ph?ph(lang):(lang==='zh'?(f.bi?'中文':''):'English')}">`;
+   return f.path?`<span class="pi">${box}<button class="sm" data-a="pick" data-p="${dp}">选择…</button></span>`:box};
   return `<span class="k ${f.opt?'':'req'}" title="${esc(c.note||'')}">${esc(f.zh)}</span>${f.bi?inp('zh')+inp('en'):`<span style="grid-column:span 2">${inp('zh')}</span>`}`};
  const block=(h,base)=>`<div class="ed"><span></span><span class="h">中文</span><span class="h">English</span>${P.fields.map(f=>row(f,base+'.cells',h.cells[f.key]||{zh:'',en:''})).join('')}${(h.extra||[]).map((x,i)=>`<span class="k" title="${esc(x.note||'')}">${esc(x.label)}</span><input type="text" data-p="${base}.extra.${i}.zh" value="${esc(x.zh||'')}"><input type="text" data-p="${base}.extra.${i}.en" value="${esc(x.en||'')}">`).join('')}</div>`;
  let h=`<section class="part" id="p-${P.key}"><h3>${esc(P.zh)} · 编辑<span class="r"><button class="p sm" data-a="msave">保存</button><button class="sm" data-a="mcancel">取消</button></span></h3>`;
@@ -278,6 +290,7 @@ function render(){
  const st=S.stats;
  $('#sum').innerHTML=`<div class="sum"><div><b>${st.today}</b><span>今日已投</span></div><div><b>${st.week}</b><span>本周已投</span></div><div><b>${st.total}</b><span>累计已投</span></div><div><b>${S.remain.hk} / ${S.remain.cn}</b><span>港池 / 陆池可补</span></div></div>
  <div class="sub">今日屏蔽 ${st.blocked_today} · 稍后 ${st.later_today}　·　本周/今日只从 v2 面板上线后开始计</div>`}
+function fref(el){const d=el.dataset;return {what:'file',part:d.part||'files',key:d.k,lang:d.lang||'zh',card:d.card!=null?+d.card:null}}
 function nextOpen(pool){const n=S.jobs.find(j=>j.pool===pool&&j.status==='pending');open=n?n.id:null}
 async function doAct(id,act,reason,note){
  const pool=(S.jobs.find(j=>j.id===id)||{}).pool;blockFor=pendReason=null;
@@ -301,8 +314,10 @@ document.addEventListener('click',async e=>{
  case'mdel':EDIT.data.cards.splice(+el.dataset.i,1);render();break;
  case'msave':{const ed=EDIT;if(await post('/api/me/save',{part:ed.part,data:ed.data},'已保存')&&EDIT===ed){EDIT=null;render()}break}
  case'mok':{const b=el.dataset;await post('/api/me/confirm',{part:b.part,field:b.field||null,lang:LANG,card:b.card!=null?+b.card:null,extra:b.extra!=null?+b.extra:null},'已确认');break}
- case'fcopy':post('/api/clip',{what:'file',key:el.dataset.k},'已复制路径，去上传框里 Ctrl+V');break;
- case'fview':post('/api/open',{what:'file',key:el.dataset.k});break;
+ case'fcopy':post('/api/clip',fref(el,'clip'),'已复制路径，去上传框里 Ctrl+V');break;
+ case'fview':post('/api/open',fref(el));break;
+ case'pick':{const p=el.dataset.p,inp=document.querySelector(`input[data-p="${p}"]`);
+  try{const r=await api('/api/pickfile',{start:inp.value});if(r.path){inp.value=r.path;setPath(EDIT.data,p,r.path)}}catch(e){toast(e.message,true)}break}
  case'impopen':IMP={step:'paste',text:''};EDIT=null;render();break;
  case'impcopy':post('/api/clip',{text:S.import_prompt},'已复制 prompt，去 AI 那里粘贴，再贴上简历');break;
  case'impparse':{IMP.text=$('#imptext').value;try{const r=await api('/api/me/parse',{text:IMP.text});PREV=r.preview;IMP.stats=r.stats;IMP.todo=r.todo;IMP.step='preview';render();$('#main').scrollTop=0}catch(e){toast(e.message,true)}break}

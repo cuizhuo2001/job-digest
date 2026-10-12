@@ -261,12 +261,34 @@ def me_state(prof=None):
     return {"parts": profile_card.view(prof, jdlib.resolve), "file": path, "found": os.path.exists(path)}
 
 
-def me_file(key):
-    """附件 part 里登记的文件路径（只认这里登记过的，别的路径不开）。"""
-    c = me_load()["parts"]["files"]["cells"].get(key) or {}
-    if not c.get("zh"):
-        raise ValueError("「我的资料 → 附件」里还没填这个文件")
-    return jdlib.resolve(c["zh"])
+def me_file(d):
+    """「我的资料」里登记的文件路径（附件、各段的证明材料）；只认登记过的路径字段，别的不开。"""
+    part = d.get("part") or "files"
+    f = next((f for f in profile_card.PARTS[part]["fields"] if f["key"] == d["key"] and f.get("path")), None)
+    if not f:
+        raise ValueError("这一项不是文件")
+    h = me_load()["parts"][part]
+    if d.get("card") is not None:
+        h = h["cards"][int(d["card"])]
+    c = h["cells"].get(d["key"]) or {}
+    v = c.get(d.get("lang") or "zh") or c.get("zh") or c.get("en")
+    if not v:
+        raise ValueError("「我的资料」里还没填这个文件")
+    return jdlib.resolve(v)
+
+
+def pick_file(start):
+    """编辑资料时点「选择…」：弹系统的选文件框，返回完整路径（取消 = 空）。"""
+    if not WIN.panel_win:
+        raise ValueError("只有在面板窗口里能用，手动填路径也行")
+    import webview
+    d = os.path.dirname(jdlib.resolve(start)) if start else ""
+    WIN.picking = True                  # 选文件框会抢走焦点，这期间别把面板收起来
+    try:
+        r = WIN.panel_win.create_file_dialog(webview.FileDialog.OPEN, directory=d if os.path.isdir(d) else "")
+    finally:
+        WIN.picking = False
+    return os.path.normpath(r[0]).replace("\\", "/") if r else ""
 
 
 def me_post(path, d):
@@ -463,7 +485,7 @@ def handle_post(path, d):
         if "text" in d:
             set_clip(d["text"])
         elif d.get("what") == "file":
-            set_clip(os.path.normpath(me_file(d["key"])))
+            set_clip(os.path.normpath(me_file(d)))
         else:
             job = find_job(str(d["id"]))
             prof = jdlib.load_profile()
@@ -474,8 +496,10 @@ def handle_post(path, d):
                 set_clip(os.path.normpath(os.path.join(prof["cover_letter_dir"], base + ".pdf")))
         return {}
     elif path == "/api/open" and d.get("what") == "file":
-        open_file(me_file(d["key"]))
+        open_file(me_file(d))
         return {}
+    elif path == "/api/pickfile":
+        return {"path": pick_file(d.get("start") or "")}
     elif path == "/api/open":
         job = find_job(str(d["id"]))
         w = d["what"]
@@ -634,6 +658,7 @@ class Win:
         self.panel_shown = False
         self.activated = False                        # 这次显示后面板拿到过焦点没有
         self.pinned = False                           # 钉住：点别处也不收
+        self.picking = False                          # 正在用选文件框
         self.nudge_until = 0                          # 提醒弹出来的：到点没碰过就自己收
         self.want_nudge = 0
         self.hidden_for_game = False
@@ -795,7 +820,7 @@ class Win:
                 if fg == self.panel:
                     self.activated, self.nudge_until = True, 0
                 outside = down and not self.cursor_in(self.panel) and not self.cursor_in(self.bar)
-                if self.pinned:
+                if self.pinned or self.picking:
                     pass
                 elif outside or (self.activated and fg not in (self.panel, self.bar)):
                     self.hide_panel()                                    # 点了别处 = 收起

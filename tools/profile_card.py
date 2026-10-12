@@ -9,6 +9,7 @@ job-digest · 「我的资料」
 - 清单外的字段（自定义字段）照样保留、照样显示
 - 认不出来的 ## 小节（比如你自己的备注）原样保留，写回时放在最后
 - 备注栏里的 [AI翻译待核对:en] 表示这一格是 AI 翻译的，面板上点「确认」就去掉
+- 证明材料（学位证、成绩单、实习证明）是文件路径，每段卡片各自登记，中文 / English 两栏放两个语言版本
 """
 import io
 import os
@@ -54,6 +55,8 @@ SCHEMA = [
         F("gpa", "成绩 / GPA", "GPA", bi=False),
         F("rank", "排名", "Ranking", bi=False, opt=True),
         F("courses", "主修课程", "Courses", opt=True),
+        F("proof", "学位证 / 在读证明", "Degree / enrolment proof", opt=True, path=True),
+        F("transcript", "成绩单", "Transcript", opt=True, path=True),
     ]},
     {"key": "work", "zh": "工作/实习经历", "en": "Work experience", "match": ["工作", "实习"], "card": True, "fields": [
         F("company", "单位", "Company"),
@@ -64,6 +67,7 @@ SCHEMA = [
         F("end", "结束", "To", bi=False),
         F("reason", "离职原因", "Reason for leaving"),
         F("desc", "工作描述", "Description", multi=True),
+        F("proof", "实习 / 工作证明", "Employment certificate", opt=True, path=True),
     ]},
     {"key": "skills", "zh": "语言与技能", "en": "Languages & skills", "match": ["语言", "技能"], "fields": [
         F("english", "英语成绩", "English test"),
@@ -322,8 +326,19 @@ def save(path, prof):
 
 # ───────────────────────── 给面板的视图 ─────────────────────────
 
+def _exists(p, h, resolve):
+    """文件路径字段：中英文两个版本的文件各自在不在。"""
+    out = {}
+    for f in p["fields"]:
+        if f.get("path"):
+            c = h["cells"].get(f["key"]) or {}
+            out[f["key"]] = {lang: bool(c.get(lang)) and os.path.exists(resolve(c[lang]) if resolve else c[lang])
+                             for lang in ("zh", "en")}
+    return out
+
+
 def view(prof, resolve=None):
-    """面板要的数据：字段定义 + 值；附件顺便告诉它文件在不在。"""
+    """面板要的数据：字段定义 + 值；文件路径顺便告诉它文件在不在。"""
     parts = []
     for p in SCHEMA:
         part = prof["parts"][p["key"]]
@@ -331,13 +346,12 @@ def view(prof, resolve=None):
              "fields": [{k: f[k] for k in ("key", "zh", "en", "bi", "opt", "secret", "multi", "path")}
                         for f in p["fields"]]}
         if p.get("card"):
-            d["cards"] = [{"cells": c["cells"], "extra": c.get("extra") or []} for c in part["cards"]]
+            d["cards"] = [{"cells": c["cells"], "extra": c.get("extra") or [], "exists": _exists(p, c, resolve)}
+                          for c in part["cards"]]
         else:
             d["cells"] = part["cells"]
             d["extra"] = part.get("extra") or []
-        if p["key"] == "files":
-            d["exists"] = {k: bool(c["zh"]) and os.path.exists(resolve(c["zh"]) if resolve else c["zh"])
-                           for k, c in part["cells"].items()}
+            d["exists"] = _exists(p, part, resolve)
         parts.append(d)
     return parts
 
@@ -399,6 +413,8 @@ def _template():
             continue
         item = {}
         for f in p["fields"]:
+            if f.get("path"):                # 证明材料是本机文件，AI 管不着
+                continue
             if f.get("multi"):
                 item[f["key"]] = {"zh": [], "en": []}
             elif f["bi"]:
@@ -471,7 +487,7 @@ def _norm(f, v):
 def from_import(text, current):
     """AI 回复 → 合并进当前资料（不落盘）。返回 (新资料, 统计)。
     规则：AI 给了值的覆盖；没给的保留原来的（签证答法这类简历上没有的不会被清掉）；
-    教育 / 工作只要 AI 给了至少一段，就整组换成 AI 的。附件不动。"""
+    教育 / 工作只要 AI 给了至少一段，就整组换成 AI 的（证明材料路径按学校 / 公司名带过去）。附件不动。"""
     obj = _extract_json(text)
     ai_paths = set(str(x).replace("[", ".").replace("]", "") for x in obj.get("_ai_translated") or [])
     new = copy.deepcopy(current)
@@ -501,14 +517,42 @@ def from_import(text, current):
             for i, item in enumerate(items):
                 card = empty_card(p)
                 for f in p["fields"]:
-                    put(card["cells"][f["key"]], f, item.get(f["key"]), "%s.%d.%s" % (p["key"], i, f["key"]))
+                    if not f.get("path"):
+                        put(card["cells"][f["key"]], f, item.get(f["key"]), "%s.%d.%s" % (p["key"], i, f["key"]))
                 cards.append(card)
+            _carry_paths(p, current["parts"][p["key"]]["cards"], cards)
             new["parts"][p["key"]]["cards"] = cards
         elif isinstance(src, dict):
             for f in p["fields"]:
                 put(new["parts"][p["key"]]["cells"].setdefault(f["key"], empty_cell()), f, src.get(f["key"]),
                     "%s.%s" % (p["key"], f["key"]))
     return new, st
+
+
+def _carry_paths(p, olds, cards):
+    """导入会整组换掉教育 / 工作卡片，但 AI 不会给证明材料路径：
+    按学校 / 公司名（中英文任一对上）从旧卡片带过来；名字都对不上的，同一位置的旧卡片还没被认领就按位置带。"""
+    keys = [f["key"] for f in p["fields"] if f.get("path")]
+    name = p["fields"][0]["key"]                     # school / company
+
+    def names(c):
+        x = c["cells"].get(name) or {}
+        return set(v.strip().lower() for v in (x.get("zh"), x.get("en")) if v and v.strip())
+    used = set()
+    pairs = []
+    for i, card in enumerate(cards):
+        j = next((j for j, o in enumerate(olds) if j not in used and names(o) & names(card)), None)
+        if j is not None:
+            used.add(j)
+        pairs.append(j)
+    for i, card in enumerate(cards):
+        j = pairs[i]
+        if j is None and i < len(olds) and i not in used:
+            j = i
+            used.add(i)
+        if j is not None:
+            for k in keys:
+                card["cells"][k] = copy.deepcopy(olds[j]["cells"].get(k) or empty_cell())
 
 
 def todo(prof, lang):
