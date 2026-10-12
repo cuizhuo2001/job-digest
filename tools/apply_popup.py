@@ -198,6 +198,50 @@ def act(jid, what, reason="", note=""):
         log_event(job, what, reason=reason, note=note, prev=prev if what == "undo" else "")
 
 
+def check_today():
+    """把今天待投、还没探过的链接探一遍：404/410 = 对方下架了，自动标「链接死了」并补一家
+    （跟手动点「屏蔽 → 链接死了」一样，可撤销）。只认 404/410，超时、403 这类不确定的不动；
+    LinkedIn 未登录也回 404，跳过。补进来的新岗位下一轮接着探。"""
+    import check_links
+    hit = []
+    for _ in range(3):
+        with LOCK:
+            cfg = pool.load_config()
+            t = load_today()
+            done = set(t.get("checked") or [])
+            todo = [j for j in t["jobs"] if j["id"] not in done and status_of(j["id"], cfg, t) == "pending"]
+        if not todo:
+            break
+        for j in todo:
+            url = j["url"] or ""
+            code = check_links.probe(url) if url and "linkedin.com" not in url else None
+            if code in check_links.DEAD_CODES:
+                try:
+                    act(j["id"], "blocked", "dead", note="自动体检：%s" % code)
+                    hit.append("%s %s" % (j["company"], j["title"]))
+                except ValueError:
+                    pass
+            with LOCK:
+                t = load_today()
+                t["checked"] = sorted(set(t.get("checked") or []) | {j["id"]})
+                jdlib.save_json(TODAY, t)
+    if hit:
+        jdlib.log("面板体检：%d 条链接已失效，自动换掉：%s" % (len(hit), "；".join(hit)))
+    return hit
+
+
+def link_watch():
+    time.sleep(20)                      # 开机等网络起来
+    while True:
+        try:
+            if check_today():
+                WIN.refresh_bar()
+                WIN.js(WIN.panel_win, "window.onShow && window.onShow()")
+        except Exception as e:
+            jdlib.log("面板体检出错：%s: %s" % (type(e).__name__, e))
+        time.sleep(600)
+
+
 def set_quota(key, delta):
     """每天推几家：调大当天就补进来；调小从明天起生效（今天已经排好的不删）。"""
     with LOCK:
@@ -917,6 +961,7 @@ def main():
 
     def started():
         tray()
+        threading.Thread(target=link_watch, daemon=True).start()
         WIN.loop()
 
     webview.start(started)

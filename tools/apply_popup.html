@@ -23,6 +23,9 @@ main{flex:1;overflow-y:auto;padding-bottom:18px}
 .row.applied,.row.later,.row.blocked{opacity:.55}
 .row.applied .co{text-decoration:line-through}
 .row.open{background:var(--bg)}
+.row[data-id]{cursor:pointer}
+.row[data-id]:not(.open):hover{background:var(--bg)}
+.row .ex{cursor:default}
 .hd{display:flex;align-items:center;gap:8px;cursor:pointer}
 .dot{width:8px;height:8px;border-radius:50%;flex:none}
 .dot.r{background:var(--warn)}.dot.a{background:var(--amber)}.dot.g{background:var(--gray)}
@@ -296,7 +299,8 @@ async function doAct(id,act,reason,note){
  const pool=(S.jobs.find(j=>j.id===id)||{}).pool;blockFor=pendReason=null;
  if(await post('/api/act',{id,act,reason,note})){if(act!=='undo'){nextOpen(pool);render()}}}
 document.addEventListener('click',async e=>{
- const el=e.target.closest('[data-a]');if(!el)return;
+ let el=e.target.closest('[data-a]');
+ if(!el){const rr=e.target.closest('.row[data-id]');if(!rr||e.target.closest('.ex'))return;el=rr.querySelector('.hd')}  // 整个岗位框都能点开
  const a=el.dataset.a,r=el.closest('.row'),id=r&&r.dataset.id;
  if(a!=='quit'&&quitArmed){quitArmed=false;$('#quitbtn').textContent='退出'}
  switch(a){
