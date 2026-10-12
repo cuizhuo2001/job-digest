@@ -36,6 +36,10 @@ def load_config(path=None):
     st = jdlib.load_state()
     for k in jdlib.STATE_DEFAULTS:
         cfg[k] = st[k]
+    # 面板里点 − / ＋ 设的「每天几家」存在 state.json，优先于 config.json
+    for key in ("hk", "cn"):
+        if str(st["quota"].get(key, "")).isdigit():
+            cfg["daily_quota_" + key] = int(st["quota"][key])
     return cfg
 
 

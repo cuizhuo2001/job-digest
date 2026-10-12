@@ -116,9 +116,12 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .imp .warnline{font-size:12px;color:var(--mute);margin:0 0 8px}
 .banner{border:1px solid var(--acc);background:var(--card);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
 .banner .line{margin:8px 0 0}
-#handle{position:fixed;left:0;right:0;bottom:0;height:24px;pointer-events:none}
-#handle .strip{position:absolute;left:0;right:0;top:0;height:6px;background:var(--acc)}
-#handle .tab{position:absolute;left:50%;top:0;transform:translateX(-50%);width:150px;height:24px;border-radius:0 0 8px 8px;background:var(--acc);color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer}
+#handle{position:fixed;left:0;right:0;bottom:0;height:28px;pointer-events:none}
+#handle .tab{position:absolute;left:50%;top:0;transform:translateX(-50%);width:300px;height:28px;border-radius:0 0 10px 10px;background:var(--acc);color:#fff;font-size:13px;font-weight:500;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:8px;pointer-events:auto;cursor:pointer}
+#handle .tab b{font:700 14px Georgia,serif;letter-spacing:0}
+.qt{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;color:var(--mute)}
+.qt button{font-size:12px;line-height:1;padding:1px 7px;border-radius:6px}
+.qt b{color:var(--ink);font:700 13px Georgia,serif;min-width:16px;text-align:center}
 </style></head><body>
 <div id="app">
  <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button></div><span id="cnt"></span>
@@ -127,7 +130,7 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
  <main id="main"><div id="jobs"><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
 </div>
 <div id="toast"></div>
-<div id="handle"><div class="strip"></div><div class="tab" data-a="hide" id="tab">投递</div></div>
+<div id="handle"><div class="tab" data-a="hide" id="tab">今日投递</div></div>
 <script>
 const T=new URLSearchParams(location.search).get('t');
 let S=null,open=null,blockFor=null,pendReason=null,quitArmed=false;
@@ -263,12 +266,12 @@ function render(){
  const den=c.pending+c.applied;
  $('#cnt').textContent=`待投 ${c.pending} · 稍后 ${c.later} · 已投 ${c.applied} · 屏蔽 ${c.blocked}`;
  $('#bar').style.width=(den?c.applied/den*100:0)+'%';
- $('#tab').textContent=c.pending?`投递 ${c.applied}/${den}`:'✓ 今日完成';
+ $('#tab').innerHTML=c.pending?`今日投递 <b>${c.applied}/${den}</b>`:'今日投递 <b>✓</b> 全部完成';
  $('#done').innerHTML=js.length&&!c.pending?'<div class="all">今天的都处理完了</div>':'';
  $('#cols').innerHTML=[['hk','香港'],['cn','大陆']].map(([k,l])=>{
   const rows=js.filter(j=>j.pool===k).sort((a,b)=>ORDER[a.status]-ORDER[b.status]);
   const rem=S.remain[k];
-  return `<section class="col"><h4><span>${l}</span><span>可补 ${rem}</span></h4>
+  return `<section class="col"><h4><span>${l}<span class="qt" title="每天推几家：调大今天就补上，调小从明天起生效">每天<button data-a="quota" data-pool="${k}" data-d="-1" aria-label="少一家">−</button><b>${S.quota[k]}</b><button data-a="quota" data-pool="${k}" data-d="1" aria-label="多一家">＋</button>家</span></span><span>可补 ${rem}</span></h4>
   <div class="box">${rows.map(row).join('')||'<div class="row nolink">今天没有</div>'}</div>
   ${rem?`<button class="morebtn" data-a="more" data-pool="${k}">+ 再来 ${Math.min(5,rem)} 家</button>`:`<div class="empty">${k==='hk'?'香港':'大陆'}池已空，今天没法再补。要新岗得开会话重新搜。</div>`}</section>`}).join('');
  const st=S.stats;
@@ -321,6 +324,7 @@ document.addEventListener('click',async e=>{
  case'confirm':{const n=$('#note');doAct(id,'blocked',pendReason,n?n.value.trim():'');break}
  case'cancel':pendReason=null;render();break;
  case'more':post('/api/more',{pool:el.dataset.pool},'补进来了');break;
+ case'quota':{const k=el.dataset.pool,d=+el.dataset.d;await post('/api/quota',{pool:k,delta:d},d>0?'改成每天 '+(S.quota[k]+1)+' 家，今天多补了一家':'改成每天 '+Math.max(1,S.quota[k]-1)+' 家，明天起生效');break}
  case'hide':post('/api/dock',{op:'hide'});break;
  case'quit':if(quitArmed)post('/api/dock',{op:'quit'});else{quitArmed=true;el.textContent='再点一次退出'}break;
  }});

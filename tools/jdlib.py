@@ -36,7 +36,7 @@ TG_LIMIT = 3900
 
 # 程序会写的键都在 state.json；pool.load_config() 读的时候合并进 cfg
 STATE_DEFAULTS = {"applied_ids": [], "dead_ids": [], "later": {}, "blocked": {},
-                  "blocked_companies": [], "cover_letters": {}}
+                  "blocked_companies": [], "cover_letters": {}, "quota": {}}
 
 
 def log(msg):

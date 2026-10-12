@@ -196,6 +196,22 @@ def act(jid, what, reason="", note=""):
         log_event(job, what, reason=reason, note=note, prev=prev if what == "undo" else "")
 
 
+def set_quota(key, delta):
+    """每天推几家：调大当天就补进来；调小从明天起生效（今天已经排好的不删）。"""
+    with LOCK:
+        cfg = pool.load_config()
+        cur = int(cfg.get("daily_quota_" + key, 5))
+        n = max(1, min(30, cur + int(delta)))
+        st = jdlib.load_state()
+        st["quota"][key] = n
+        jdlib.save_state(st)
+        if n > cur:
+            t = load_today()
+            refill(t, pool.load_config(), key, n - cur)
+            jdlib.save_json(TODAY, t)
+        return n
+
+
 def more(key):
     with LOCK:
         t = load_today()
@@ -300,7 +316,8 @@ def state():
     st["blocked_today"] = sum(1 for e in (cfg.get("blocked") or {}).values() if e.get("date") == today_str())
     st["later_today"] = len(t.get("later_today", []))
     return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
-            "me": me_state(), "import_prompt": profile_card.import_prompt()}
+            "me": me_state(), "import_prompt": profile_card.import_prompt(),
+            "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")}}
 
 
 # ───────────────────────── 求职信 ─────────────────────────
@@ -394,6 +411,8 @@ def handle_post(path, d):
         act(str(d["id"]), d["act"], d.get("reason", ""), d.get("note", ""))
     elif path == "/api/more":
         more(d["pool"])
+    elif path == "/api/quota":
+        set_quota(d["pool"], d["delta"])
     elif path.startswith("/api/me/"):
         r = me_post(path, d)
         if r is not None:
@@ -491,12 +510,13 @@ class H(BaseHTTPRequestHandler):
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
+gdi32.CreateRoundRectRgn.restype = wintypes.HANDLE
 user32.SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.BOOL]
 SWP = 0x0001 | 0x0004 | 0x0010          # NOSIZE | NOZORDER | NOACTIVATE
 
 
 class Dock:
-    STRIP, TAB_H, TAB_W = 6, 24, 150    # CSS px，跟 apply_popup.html 底部把手对齐
+    TAB_H, TAB_W, TAB_R = 28, 300, 10    # CSS px，跟 apply_popup.html 的 #handle .tab 对齐
 
     def __init__(self):
         self.hwnd = None
@@ -527,13 +547,11 @@ class Dock:
             return
         l, t, r, b = self.rect()
         w, h, s = r - l, b - t, self.scale()
-        top = h - int(self.TAB_H * s)                # 露出来那 24px 的最上沿 = 屏幕顶端
-        strip = gdi32.CreateRectRgn(0, top, w, top + int(self.STRIP * s))
-        tab = gdi32.CreateRectRgn(int(w / 2 - self.TAB_W * s / 2), h - int(self.TAB_H * s),
-                                  int(w / 2 + self.TAB_W * s / 2), h)
-        gdi32.CombineRgn(strip, strip, tab, 2)     # RGN_OR
-        gdi32.DeleteObject(tab)
-        user32.SetWindowRgn(self.hwnd, strip, True)  # 系统接管 strip，不用删
+        rad = int(self.TAB_R * s)
+        # 只露底部中间那块「今日投递 x/x」小标签；圆角矩形往上多画一截，让上面两个圆角落在屏幕外
+        tab = gdi32.CreateRoundRectRgn(int(w / 2 - self.TAB_W * s / 2), h - int(self.TAB_H * s) - rad,
+                                       int(w / 2 + self.TAB_W * s / 2) + 1, h + 1, rad * 2, rad * 2)
+        user32.SetWindowRgn(self.hwnd, tab, True)  # 系统接管 region，不用删
 
     def hidden_y(self):
         l, t, r, b = self.rect()
@@ -575,14 +593,11 @@ class Dock:
         self.sticky_until = time.time() + 3
 
     def in_trigger(self, cx, cy):
-        """缩起时的感应区 = 细边 + 把手（跟 _region 一样），不是整条顶边。"""
+        """缩起时的感应区 = 露出来的那块小标签（跟 _region 一样），不是整条顶边。"""
         l, t, r, b = self.rect()
         s = self.scale()
         mid = (l + r) / 2
-        top = b - self.TAB_H * s
-        on_strip = l <= cx < r and top <= cy < top + self.STRIP * s + 2
-        on_tab = mid - self.TAB_W * s / 2 <= cx < mid + self.TAB_W * s / 2 and b - self.TAB_H * s <= cy < b
-        return on_strip or on_tab
+        return mid - self.TAB_W * s / 2 <= cx < mid + self.TAB_W * s / 2 and b - self.TAB_H * s <= cy < b
 
     def loop(self):
         import gaming_guard
