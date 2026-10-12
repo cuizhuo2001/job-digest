@@ -71,7 +71,7 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 |---|---|---|
 | 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
 | 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 17 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
-| 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 30 条（见下一节），不自动更新 |
+| 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 29 条（见下一节），不自动更新 |
 | ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py` |
 
 两个自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。
@@ -99,7 +99,7 @@ python tools/add_job.py --list                  # 看加过的；--remove <id> �
 
 ## 自带的香港 2027 校招名单
 
-`examples/pool_hk_2027.csv`：**30 个**香港 2027 年入职的 graduate programme / MT / 校招岗，覆盖中资券商、外资行、四大和中型会计师行、咨询、金管局。每一条都在 **2026-10-11** 打开官网核实过，`apply_url` 尽量直达具体岗位页；只能邮件投递或者没有单独岗位页的，在 `reasons` 列写了投递方式或点击路径。
+`examples/pool_hk_2027.csv`：**29 个**香港 2027 年入职的 graduate programme / MT / 校招岗，覆盖中资券商、外资行、四大和中型会计师行、咨询、金管局。每一条都在 **2026-10-11** 打开官网核实过，`apply_url` 尽量直达具体岗位页；只能邮件投递或者没有单独岗位页的，在 `reasons` 列写了投递方式或点击路径。
 
 - **会过期**：截止日过了会被自动剔除；下一年的项目要自己更新
 - **不是完整名单**：目前偏金融、风控、审计、咨询方向，市场、人力、供应链这些方向的公司还没收录；没收录不代表没在招
