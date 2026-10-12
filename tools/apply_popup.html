@@ -118,6 +118,7 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .banner .line{margin:8px 0 0}
 #handle{position:fixed;left:0;right:0;bottom:0;height:28px;pointer-events:none}
 #handle .tab{position:absolute;left:50%;top:0;transform:translateX(-50%);width:300px;height:28px;border-radius:0 0 10px 10px;background:var(--acc);color:#fff;font-size:13px;font-weight:500;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:8px;pointer-events:auto;cursor:pointer}
+@media (max-height:60px){#app,#toast{display:none}#handle .tab{border-radius:0;width:100%}}
 #handle .tab b{font:700 14px Georgia,serif;letter-spacing:0}
 .qt{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;color:var(--mute)}
 .qt button{font-size:12px;line-height:1;padding:1px 7px;border-radius:6px}

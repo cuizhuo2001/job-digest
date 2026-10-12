@@ -509,20 +509,20 @@ class H(BaseHTTPRequestHandler):
 # ───────────────────────── 贴边窗口 ─────────────────────────
 
 user32 = ctypes.windll.user32
-gdi32 = ctypes.windll.gdi32
-gdi32.CreateRoundRectRgn.restype = wintypes.HANDLE
-user32.SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.BOOL]
-SWP = 0x0001 | 0x0004 | 0x0010          # NOSIZE | NOZORDER | NOACTIVATE
+SWP_SIZE = 0x0004 | 0x0010              # NOZORDER | NOACTIVATE（位置和大小一起改）
 
 
 class Dock:
-    TAB_H, TAB_W, TAB_R = 28, 300, 10    # CSS px，跟 apply_popup.html 的 #handle .tab 对齐
+    # 缩起时窗口直接缩成这么大（CSS px），只装得下「今日投递 x/x」小标签。
+    # ⚠️ 别用 SetWindowRgn 裁：WebView2 用 GPU 直接上屏，会绕过 region，露出整条面板背景
+    TAB_H, TAB_W = 28, 300
 
     def __init__(self):
         self.hwnd = None
         self.window = None
         self.mode = "docked"            # docked / float
         self.shown = True
+        self.full = None                # 展开时的窗口大小 (w, h)
         self.hold = False               # 页面里正在打字（屏蔽备注）时别缩
         self.sticky_until = 0           # 提醒模式：滑下来后这段时间内不自动缩
         self.hidden_for_game = False
@@ -538,37 +538,21 @@ class Dock:
         except Exception:
             return 1.0
 
-    def _move(self, x, y):
-        user32.SetWindowPos(self.hwnd, 0, int(x), int(y), 0, 0, SWP)
-
-    def _region(self, on):
-        if not on:
-            user32.SetWindowRgn(self.hwnd, None, True)
-            return
-        l, t, r, b = self.rect()
-        w, h, s = r - l, b - t, self.scale()
-        rad = int(self.TAB_R * s)
-        # 只露底部中间那块「今日投递 x/x」小标签；圆角矩形往上多画一截，让上面两个圆角落在屏幕外
-        tab = gdi32.CreateRoundRectRgn(int(w / 2 - self.TAB_W * s / 2), h - int(self.TAB_H * s) - rad,
-                                       int(w / 2 + self.TAB_W * s / 2) + 1, h + 1, rad * 2, rad * 2)
-        user32.SetWindowRgn(self.hwnd, tab, True)  # 系统接管 region，不用删
-
-    def hidden_y(self):
-        l, t, r, b = self.rect()
-        return -((b - t) - int(self.TAB_H * self.scale()))
+    def _set(self, x, y, w, h):
+        user32.SetWindowPos(self.hwnd, 0, int(x), int(y), int(w), int(h), SWP_SIZE)
 
     def slide(self, show):
         if not self.hwnd or self.mode != "docked" or show == self.shown:
             return
         l, t, r, b = self.rect()
-        y1 = 0 if show else self.hidden_y()
+        mid = (l + r) / 2
         if show:
-            self._region(False)
-        for i in range(1, 9):
-            self._move(l, t + (y1 - t) * i / 8.0)
-            time.sleep(0.012)
-        if not show:
-            self._region(True)
+            w, h = self.full
+            self._set(mid - w / 2, 0, w, h)
+        else:
+            self.full = (r - l, b - t)      # 记住展开时的大小（用户可能拖过）
+            s = self.scale()
+            self._set(mid - self.TAB_W * s / 2, 0, self.TAB_W * s, self.TAB_H * s)
         self.shown = show
         if show and self.window:
             try:
@@ -582,22 +566,23 @@ class Dock:
             self.slide(True)
 
     def place(self):
-        l, t, r, b = self.rect()
+        w, h = self.full
         sw = user32.GetSystemMetrics(0)
-        self._move((sw - (r - l)) / 2, 0)
+        self._set((sw - w) / 2, 0, w, h)
         self.mode, self.shown = "docked", True
 
     def redock(self):
-        self._region(False)
+        if not self.shown:
+            self.slide(True)
+        l, t, r, b = self.rect()
+        self.full = (r - l, b - t)
         self.place()
         self.sticky_until = time.time() + 3
 
     def in_trigger(self, cx, cy):
-        """缩起时的感应区 = 露出来的那块小标签（跟 _region 一样），不是整条顶边。"""
+        """缩起时窗口本身就是那块小标签：鼠标在窗口里 = 碰到了。"""
         l, t, r, b = self.rect()
-        s = self.scale()
-        mid = (l + r) / 2
-        return mid - self.TAB_W * s / 2 <= cx < mid + self.TAB_W * s / 2 and b - self.TAB_H * s <= cy < b
+        return l <= cx < r and t <= cy < b + 2
 
     def loop(self):
         import gaming_guard
@@ -607,6 +592,8 @@ class Dock:
         while not self.hwnd:
             self.hwnd = user32.FindWindowW(None, TITLE)
             time.sleep(0.1)
+        l, t, r, b = self.rect()
+        self.full = (r - l, b - t)
         self.place()
         hover_t = leave_t = None
         last_game = 0
@@ -719,7 +706,8 @@ def main():
 
     DOCK.window = webview.create_window(
         TITLE, "http://127.0.0.1:%d/?t=%s" % (port, TOKEN), width=1000, height=720,
-        frameless=True, on_top=True, easy_drag=False, background_color="#f5f4ed")
+        frameless=True, on_top=True, easy_drag=False, background_color="#f5f4ed",
+        min_size=(Dock.TAB_W, Dock.TAB_H))      # pywebview 默认最小 200×100，不放开的话缩起时标签下面会多出一截
     if nudge and not all_done():
         DOCK.sticky_until = time.time() + 15
 
