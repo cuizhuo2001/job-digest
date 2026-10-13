@@ -386,7 +386,7 @@ def state():
     return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
             "me": me_state(), "import_prompt": profile_card.import_prompt(),
             "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")},
-            "bar": {"style": WIN.style, "pinned": WIN.pinned, "styles": STYLE_NAMES}}
+            "bar": {"style": WIN.style, "pinned": WIN.pinned or WIN.copy_pin, "styles": STYLE_NAMES}}
 
 
 _FRESH = {}
@@ -538,7 +538,8 @@ def handle_post(path, d):
             else:
                 base = cl_info(job["id"], pool.load_config())["base"]
                 set_clip(os.path.normpath(os.path.join(prof["cover_letter_dir"], base + ".pdf")))
-        return {}
+        WIN.copy_pin = True             # 复制完要去网页里粘贴：这次先别「点别处就收」
+        return {"pinned": True}
     elif path == "/api/open" and d.get("what") == "file":
         open_file(me_file(d))
         return {}
@@ -578,7 +579,8 @@ def handle_post(path, d):
         elif op == "toggle":
             WIN.toggle()
         elif op == "pin":
-            WIN.pinned = not WIN.pinned
+            on = not (WIN.pinned or WIN.copy_pin)
+            WIN.pinned, WIN.copy_pin = on, False
         elif op == "style":
             WIN.set_style(d["style"])
         elif op == "quit":
@@ -703,6 +705,8 @@ class Win:
         self.activated = False                        # 这次显示后面板拿到过焦点没有
         self.pinned = False                           # 钉住：点别处也不收
         self.picking = False                          # 正在用选文件框
+        self.copy_pin = False                         # 这次打开后复制过东西：收起前都不自动收
+        self.panel_last = None
         self.nudge_until = 0                          # 提醒弹出来的：到点没碰过就自己收
         self.want_nudge = 0
         self.hidden_for_game = False
@@ -760,6 +764,7 @@ class Win:
     def reset_bar(self):
         st, bc = self._bar_cfg()
         (bc.get("pos") or {}).pop(self.style, None)
+        bc.pop("panel_pos", None)
         jdlib.save_state(st)
         self.place_bar()
 
@@ -782,10 +787,15 @@ class Win:
         l, t, r, b = _work_area(self.bar)
         w, h = min(PANEL_W * s, r - l), min(PANEL_H * s, b - t)
         gap = 6 * s
-        x = br - w if self.style == "card" else (bl + br - w) / 2
-        y = bb + gap if (bt + bb) / 2 < (t + b) / 2 else bt - gap - h     # 状态栏在上半屏就往下开，否则往上开
+        pos = self._bar_cfg()[1].get("panel_pos")      # 用户拖过面板 = 放在他拖到的地方
+        if pos:
+            x, y = pos
+        else:
+            x = br - w if self.style == "card" else (bl + br - w) / 2
+            y = bb + gap if (bt + bb) / 2 < (t + b) / 2 else bt - gap - h     # 状态栏在上半屏就往下开，否则往上开
         x, y = max(l, min(x, r - w)), max(t, min(y, b - h))
         user32.SetWindowPos(self.panel, 0, int(x), int(y), int(w), int(h), SWP)
+        self.panel_last = _rect(self.panel)
 
     def show_panel(self, activate=True):
         if not self.panel or self.hidden_for_game:
@@ -803,7 +813,7 @@ class Win:
     def hide_panel(self):
         if self.panel and self.panel_shown:
             user32.ShowWindow(self.panel, 0)                             # SW_HIDE
-            self.panel_shown, self.nudge_until = False, 0
+            self.panel_shown, self.nudge_until, self.copy_pin = False, 0, False
             self.js(self.bar_win, "window.barPanel && barPanel(false)")
 
     def toggle(self):
@@ -864,16 +874,23 @@ class Win:
                 if fg == self.panel:
                     self.activated, self.nudge_until = True, 0
                 outside = down and not self.cursor_in(self.panel) and not self.cursor_in(self.bar)
-                if self.pinned or self.picking:
+                if self.pinned or self.copy_pin or self.picking:
                     pass
                 elif outside or (self.activated and fg not in (self.panel, self.bar)):
                     self.hide_panel()                                    # 点了别处 = 收起
                 elif self.nudge_until and now > self.nudge_until and not self.cursor_in(self.panel):
                     self.hide_panel()
-            if not user32.GetAsyncKeyState(0x01) & 0x8000:               # 松开鼠标后看状态栏是不是被拖过
+            if not user32.GetAsyncKeyState(0x01) & 0x8000:               # 松开鼠标后看状态栏 / 面板是不是被拖过
                 rc = _rect(self.bar)
                 if rc != self.bar_last:
                     self.save_bar_pos(rc)
+                if self.panel_shown:
+                    rc = _rect(self.panel)
+                    if self.panel_last and rc[:2] != self.panel_last[:2]:
+                        st, bc = self._bar_cfg()
+                        bc["panel_pos"] = [rc[0], rc[1]]
+                        jdlib.save_state(st)
+                    self.panel_last = rc
 
 
 WIN = Win()
@@ -910,7 +927,7 @@ def tray():
     ICON = pystray.Icon("jobdock", img, "今日投递", pystray.Menu(
         pystray.MenuItem("打开面板", lambda: WIN.show_panel(True), default=True),
         pystray.MenuItem("状态栏样式", pystray.Menu(*[style_item(k) for k in STYLES])),
-        pystray.MenuItem("状态栏放回默认位置", lambda: WIN.reset_bar()),
+        pystray.MenuItem("状态栏和面板放回默认位置", lambda: WIN.reset_bar()),
         pystray.MenuItem("退出", lambda: quit_all())))
     ICON.run_detached()
 

@@ -134,7 +134,7 @@ button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 <div id="app">
  <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button></div><span id="cnt"></span>
   <span class="bs">状态栏<span class="seg" id="bstyle"></span></span>
-  <button class="sm" data-a="pin" id="pinbtn" title="钉住后点别处也不收起">钉住</button><button class="sm" data-a="hide" title="收起（Esc）">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
+  <button class="sm" data-a="pin" id="pinbtn" title="钉住后点别处也不收起（复制过东西会自动钉住）">钉住</button><button class="sm" data-a="hide" title="收起（Esc）">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
  <div class="bar"><i id="bar"></i></div>
  <main id="main"><div id="jobs"><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
 </div>
@@ -153,7 +153,10 @@ async function load(){S=await api('/api/state');render()}
 window.onShow=()=>{if(!EDIT&&!IMP)load().catch(()=>{})};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.target.matches('input,textarea'))post('/api/dock',{op:'hide'})});
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',err?4000:1600)}
-async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}if(msg)toast(msg);return true}catch(e){toast('出错：'+e.message,true);return false}}
+async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}
+ if(d&&d.pinned&&S&&!S.bar.pinned){S.bar.pinned=true;pinUI();if(msg)msg+='（面板先不收，用完点「收起」）'}
+ if(msg)toast(msg);return true}catch(e){toast('出错：'+e.message,true);return false}}
+function pinUI(){$('#pinbtn').textContent=S.bar.pinned?'已钉住':'钉住';$('#pinbtn').className='sm'+(S.bar.pinned?' on':'')}
 
 const ORDER={pending:0,later:1,applied:2,blocked:3};
 function dot(j){return j.left===null?'g':j.left<=1?'r':j.left<=30?'a':'g'}
@@ -282,7 +285,7 @@ function render(){
  $('#cnt').textContent=`待投 ${c.pending} · 稍后 ${c.later} · 已投 ${c.applied} · 屏蔽 ${c.blocked}`;
  $('#bar').style.width=(den?c.applied/den*100:0)+'%';
  $('#bstyle').innerHTML=Object.entries(S.bar.styles).map(([k,l])=>`<button data-a="bstyle" data-s="${k}" class="${S.bar.style===k?'on':''}">${l}</button>`).join('');
- $('#pinbtn').textContent=S.bar.pinned?'已钉住':'钉住';$('#pinbtn').className='sm'+(S.bar.pinned?' on':'');
+ pinUI();
  $('#done').innerHTML=js.length&&!c.pending?'<div class="all">今天的都处理完了</div>':'';
  $('#cols').innerHTML=[['hk','香港'],['cn','大陆']].map(([k,l])=>{
   const rows=js.filter(j=>j.pool===k).sort((a,b)=>ORDER[a.status]-ORDER[b.status]);
