@@ -75,7 +75,7 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 | 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
 | 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 17 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
 | 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 29 条（见下一节），不自动更新 |
-| 🏫 **学校就业中心** | `data/school_hk.csv`、`data/school_cn.csv` | 就业中心发的岗位邮件自动导入（`sources.mail_import`，要经典版 Outlook 登着学校邮箱）；就业网站、群里转发的清单在面板「导入岗位清单」里粘贴 |
+| 🏫 **学校就业中心** | `data/school_hk.csv`、`data/school_cn.csv` | 就业中心发的岗位邮件自动导入（`sources.mail_import`，要经典版 Outlook 登着学校邮箱；学校推荐的校招岗不看方向，实习 / 标题排除词 / 城市照常筛，想让它也按方向筛就设 `school_follow_directions: true`）；就业网站、群里转发的清单在面板「导入岗位清单」里粘贴 |
 | ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py`，或面板「导入岗位清单」 |
 
 自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。

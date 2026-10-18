@@ -289,6 +289,8 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_de
                 tags = row_tags(r)
                 hit = [d["name"] for d in dirs
                        if (not gex or d.get("ignore_global_exclude")) and dir_match(r, d, tags)]
+                if not hit and not gex and rid.startswith("s-") and not cfg.get("school_follow_directions"):
+                    hit = ["学校推荐"]          # 学校就业中心推荐的校招岗不看方向；类型/标题/城市照常筛
                 if not hit:
                     drop["标题排除" if gex else "方向不符"] += 1
                     continue

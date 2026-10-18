@@ -7,7 +7,7 @@
 
  "sources": {"cn_import": {"enabled": true}, "hk_watch": {"enabled": true}, "cn_watch": {"enabled": true},
              "mail_import": {"enabled": false, "senders": ["cbcareer@cityu.edu.hk"], "subject_keywords": []}, "refresh_hours": 20},
- "_sources说明": "每次推送前自动刷新（输出文件超过 refresh_hours 小时才刷）。cn_import = 下载 job-autopilot 公开的大陆 2027 秋招岗位库；hk_watch = 按 watchlist_hk.json 去关注公司的招聘系统查香港校招岗；cn_watch = 按 watchlist_cn.json 去大陆关注公司（中信、中金、华泰、招商、广发）官网查校招岗，只留 allowed_cities 里的城市，香港岗自动进香港池；mail_import = 学校就业中心发的岗位邮件自动导入（要经典版 Outlook 登着学校邮箱，senders 填就业中心的发件地址，enabled 改成 true）。手动刷新：python tools/refresh.py --force",
+ "_sources说明": "每次推送前自动刷新（输出文件超过 refresh_hours 小时才刷）。cn_import = 下载 job-autopilot 公开的大陆 2027 秋招岗位库；hk_watch = 按 watchlist_hk.json 去关注公司的招聘系统查香港校招岗；cn_watch = 按 watchlist_cn.json 去大陆关注公司（中信、中金、华泰、招商、广发）官网查校招岗，只留 allowed_cities 里的城市，香港岗自动进香港池；mail_import = 学校就业中心发的岗位邮件自动导入（要经典版 Outlook 登着学校邮箱，senders 填就业中心的发件地址，enabled 改成 true；学校推荐的校招岗默认不看方向，想按方向筛就在最外层加 \"school_follow_directions\": true）。手动刷新：python tools/refresh.py --force",
 
  "out_md": "今日投递清单.md",
  "_out_md说明": "每天推送时顺手写一份带完整链接的清单，留空就不写",
