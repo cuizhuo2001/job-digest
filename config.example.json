@@ -14,8 +14,8 @@
  "daily_quota_cn": 5,
  "daily_quota_hk": 5,
  "urgent_days": 3,
- "lookahead_days": 7,
- "_quota说明": "两边各推几家（面板里点 − / ＋ 改的会存进 state.json，优先于这里）；urgent_days 天内截止算火烧眉毛；lookahead_days 是截止雷达往前看几天",
+ "lookahead_days": 14,
+ "_quota说明": "两边各推几家（面板里点 − / ＋ 改的会存进 state.json，优先于这里）；urgent_days 天内截止算火烧眉毛；lookahead_days 天内截止的排在「招满即止」的前面（太短的话，月底截止的岗位要拖到最后一周才推）",
 
  "allowed_cities": ["香港", "深圳", "广州", "上海"],
  "_allowed_cities说明": "大陆池只留城市字段包含这些词的岗位（香港池固定只看香港）",
