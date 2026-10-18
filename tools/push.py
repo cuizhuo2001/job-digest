@@ -102,11 +102,11 @@ def build_message(d, cfg, now, dry, warn=None):
             L.append("    …另有 %d 条（见清单 md）" % (len(over) - 6))
         L.append("")
 
-    # 关注公司今天新挂出来的（watch_hk 第一次看到的岗位），不管排没排进今日名单都提一句
+    # 今天新出现的：关注公司新挂出来的（w-）+ 学校邮件里新导入的（s-），不管排没排进今日名单都提一句
     fresh = [r for key in ("hk", "cn") if d.get(key) for r in d[key]["alive_rows"]
-             if r.get("first_seen") == now.date().isoformat() and str(r.get("id", "")).startswith("w-")]
+             if r.get("first_seen") == now.date().isoformat() and str(r.get("id", "")).startswith(("w-", "s-"))]
     if fresh:
-        L.append("━━━ 🆕 关注公司新挂出 %d 个岗位 ━━━" % len(fresh))
+        L.append("━━━ 🆕 新出现 %d 个岗位（关注公司 / 学校邮件）━━━" % len(fresh))
         for r in fresh[:6]:
             L.append(job_line(r))
         if len(fresh) > 6:

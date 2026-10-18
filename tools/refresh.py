@@ -24,9 +24,10 @@ import pool  # noqa: E402
 import import_cn  # noqa: E402
 import watch_hk  # noqa: E402
 import watch_cn  # noqa: E402
+import import_mail  # noqa: E402
 
 SOURCES = (("cn_import", "大陆岗位库", import_cn), ("hk_watch", "香港关注公司", watch_hk),
-           ("cn_watch", "大陆关注公司", watch_cn))
+           ("cn_watch", "大陆关注公司", watch_cn), ("mail_import", "学校邮件", import_mail))
 
 
 def due(path, hours):

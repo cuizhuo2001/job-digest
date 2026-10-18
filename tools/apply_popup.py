@@ -20,6 +20,7 @@ pywebview（WebView2 内核）开两个无边框置顶窗口：状态栏（statu
     pythonw apply_popup.py --nudge  已在跑就把面板弹出来提醒；没在跑就起一个并提醒
 """
 import io, os, re, sys, json, time, ctypes, secrets, datetime, threading, subprocess, webbrowser
+import urllib.parse
 import urllib.request
 from ctypes import wintypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -29,6 +30,7 @@ sys.path.insert(0, HERE)
 import jdlib  # noqa: E402
 import pool  # noqa: E402
 import profile_card  # noqa: E402
+import import_list  # noqa: E402
 
 HISTORY = jdlib.HISTORY
 TODAY = os.path.join(jdlib.ROOT, "popup_today.json")
@@ -385,6 +387,7 @@ def state():
     st["later_today"] = len(t.get("later_today", []))
     return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
             "me": me_state(), "import_prompt": profile_card.import_prompt(),
+            "jobs_prompt": import_list.import_prompt(),
             "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")},
             "bar": {"style": WIN.style, "pinned": WIN.pinned or WIN.copy_pin, "styles": STYLE_NAMES}}
 
@@ -399,7 +402,7 @@ def fresh_count():
         return _FRESH["n"]
     d = pool.select(pool.load_config(), datetime.date.today())
     n = sum(1 for k in ("hk", "cn") if d.get(k) for r in d[k]["alive_rows"]
-            if r.get("first_seen") == today_str() and str(r.get("id", "")).startswith("w-"))
+            if r.get("first_seen") == today_str() and str(r.get("id", "")).startswith(("w-", "s-")))
     _FRESH.update(date=today_str(), at=now, n=n)
     return n
 
@@ -543,6 +546,20 @@ def handle_post(path, d):
     elif path == "/api/open" and d.get("what") == "file":
         open_file(me_file(d))
         return {}
+    elif path == "/api/jobs/parse":
+        try:
+            items = import_list.recognize(d.get("text") or "")
+        except ValueError as e:
+            raise ValueError("AI 回的 JSON 读不了（%s）：让它「只输出 JSON，用 ```json 包起来」再来一次" % e)
+        if not items:
+            raise ValueError("没认出岗位。排得太乱的话，点下面「复制 prompt 让 AI 整理」")
+        return {"items": import_list.plan(items)}
+    elif path == "/api/jobs/import":
+        picks = [x for x in d.get("items") or [] if x.get("pick")]
+        with LOCK:
+            added = import_list.save(picks, "粘贴导入 %s" % datetime.date.today().strftime("%m-%d"))
+        WIN.refresh_bar()
+        return dict(state(), added=len(added))
     elif path == "/api/pickfile":
         return {"path": pick_file(d.get("start") or "")}
     elif path == "/api/open":
@@ -550,6 +567,9 @@ def handle_post(path, d):
         w = d["what"]
         if w == "url" and job["url"]:
             webbrowser.open(job["url"])
+        elif w == "search":                         # 清单里没给链接的：搜官网申请页
+            webbrowser.open("https://www.bing.com/search?q=" + urllib.parse.quote(
+                "%s %s apply" % (job["company"], job["title"])))
         elif w == "resume":
             open_file(resume_of(job["pool"]))
         elif w in ("cl_md", "cl_pdf"):

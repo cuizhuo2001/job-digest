@@ -37,6 +37,8 @@
   - 每段可以登记**证明材料**（学位证 / 在读证明、成绩单、实习证明）的文件路径，中英文版各一份；网申要上传时点「复制路径」，去上传框 Ctrl+V。编辑时点「选择…」直接选文件
   - **导入简历**：复制面板给的 prompt，连同简历一起丢给任意 AI（ChatGPT、豆包、Kimi、DeepSeek…），把它回的结果贴回来，自动分好 8 部分；AI 翻译的地方用虚线框标出来，核对后点「确认」
   - 每部分都能在面板里直接编辑，资料存在本机的 `填表速查卡.md`
+- **导入岗位清单**：学校就业中心的邮件、就业网站的岗位列表、群里转发的招聘信息，整段复制粘进面板，自动认出公司 / 岗位 / 截止日，标出已经在池子里的，预览后一键加进去；排得太乱认不出来时，复制面板给的 prompt 让任意 AI 整理一下再贴回来。清单没给链接的岗位，卡片上有「搜官网」
+- **学校邮件自动导入**（可选，Windows + 经典版 Outlook）：就业中心每周发的岗位邮件，推送前自动认出新岗位加进池子，简报里提示
 - **求职信**：按你的模板起草 md，写完一键转 PDF
 - **链接体检**：面板每天自动把当天名单的链接探一遍，对方下架（404）的自动标成「链接死了」并补一家；`check_links.py --all` 可以体检整个池子
 - **手写提醒**：池子里没有、只有你知道的事（比如“东亚银行校招 11 月中才开”），到日子前在简报里提醒
@@ -73,7 +75,8 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 | 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
 | 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 17 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
 | 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 29 条（见下一节），不自动更新 |
-| ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py` |
+| 🏫 **学校就业中心** | `data/school_hk.csv`、`data/school_cn.csv` | 就业中心发的岗位邮件自动导入（`sources.mail_import`，要经典版 Outlook 登着学校邮箱）；就业网站、群里转发的清单在面板「导入岗位清单」里粘贴 |
+| ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py`，或面板「导入岗位清单」 |
 
 自动来源默认最多 20 小时刷一次（`sources.refresh_hours`），手动强刷：`python tools/refresh.py --force`。刷新失败时用上次的数据照常推送，简报底部会提示。
 
@@ -84,6 +87,8 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 ```bash
 python tools/watch_hk.py --only 公司名 --dry    # 只查这一家，看能不能查到
 python tools/watch_cn.py --only 公司名 --dry    # 大陆关注公司同理
+python tools/import_mail.py --dry               # 学校邮件：看会导入什么
+python tools/import_list.py 清单.txt            # 命令行导入一段清单（--save 才真加）
 ```
 
 关注公司**第一次**挂出来的岗位，简报里会单独列在「🆕 关注公司新挂出 N 个岗位」。
@@ -222,6 +227,8 @@ tools/
   import_cn.py        大陆岗位库导入
   watch_hk.py         香港关注公司查岗
   watch_cn.py         大陆关注公司查岗（Hotjob / 中信官网 / 北森…）
+  import_list.py      认岗位清单（学校邮件 / 就业网站 / 群消息）
+  import_mail.py      学校就业中心邮件自动导入（Outlook）
   add_job.py          手动补录
   apply_popup.py/.html  投递面板（Windows）
   profile_card.py     「我的资料」：速查卡读写、导入简历的 prompt 和识别

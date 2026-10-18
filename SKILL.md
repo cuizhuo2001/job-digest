@@ -38,6 +38,8 @@ python tools/push.py                  # 真推
 python tools/refresh.py --force       # 立刻刷新数据源（大陆岗位库导入 + 香港关注公司查岗）
 python tools/watch_hk.py --only 花旗 --dry   # 只查一家关注公司，调试新加的公司用
 python tools/watch_cn.py --only 招商 --dry   # 大陆关注公司同理
+python tools/import_mail.py --dry           # 学校就业中心邮件里会导入哪些岗位
+python tools/import_list.py 清单.txt         # 导入一段复制来的岗位清单（--save 才真加）
 python tools/add_job.py --hk --company X --title Y --url U --deadline YYYY-MM-DD   # 手动补录；--list / --remove <id>
 python tools/check_links.py           # 体检今天要推的链接；--all 查全部；--unmark <id> 撤销
 python tools/register_task.py         # 注册 / 刷新任务计划；--show 看状态；--run 立刻推一次
