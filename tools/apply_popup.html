@@ -134,6 +134,7 @@ button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .jt td span{color:var(--mute)}
 .jt tr.off td{opacity:.5}
 .jt td.why{color:var(--amber);font-size:12px;max-width:220px}
+.jt td.nw{white-space:nowrap}
 .jt td.why small{display:block;color:var(--mute);font-size:11px}
 .qt{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;color:var(--mute)}
 .qt button{font-size:12px;line-height:1;padding:1px 7px;border-radius:6px}
@@ -315,7 +316,7 @@ function jimpHTML(){
  const it=IMPJ.items,n=it.filter(r=>r.pick).length;
  return `<section class="part imp"><h3>认出 ${it.length} 条<span class="r"><button class="p sm" data-a="jimpsave">加进池子（${n} 条）</button><button class="sm" data-a="jimpback">返回修改</button><button class="sm" data-a="jimpcancel">取消</button></span></h3>
  <div class="lab">灰掉的默认不加（已在池子里 / 实习 / 过了截止日），想加就勾上；「港 / 陆」点一下换池子。没给链接的，投的时候卡片上有「搜官网」。</div>
- <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="jpick" data-i="${i}" ${r.pick?'checked':''}></td><td><button class="sm" data-a="jpool" data-i="${i}">${r.pool==='hk'?'港':'陆'}</button></td><td>${esc(r.deadline||'滚动')}</td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td>${esc(r.type)}</td><td class="why">${esc(r.why||'')}${r.dup?`<small>${esc(r.dup.company)} · ${esc(r.dup.title)}</small>`:''}</td></tr>`).join('')}</table></section>`}
+ <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="jpick" data-i="${i}" ${r.pick?'checked':''}></td><td><button class="sm" data-a="jpool" data-i="${i}">${r.pool==='hk'?'港':'陆'}</button></td><td class="nw">${esc(r.deadline||'滚动')}</td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td class="nw">${esc(r.type)}</td><td class="why">${esc(r.why||'')}${r.dup?`<small>${esc(r.dup.company)} · ${esc(r.dup.title)}</small>`:''}</td></tr>`).join('')}</table></section>`}
 function lfHTML(){
  if(LF.step==='copy')return `<section class="part imp"><h3>批量找链接<span class="r"><button class="sm" data-a="lfcancel">取消</button></span></h3>
  <ol><li>点这里复制 prompt（里面是 ${S.nolink>40?'截止最早的 40':S.nolink} 个没链接的岗位）：<button class="p sm" data-a="lfcopy">复制 prompt</button></li>
