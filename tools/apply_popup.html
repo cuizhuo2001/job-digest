@@ -144,21 +144,21 @@ button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
   <span class="bs">状态栏<span class="seg" id="bstyle"></span></span>
   <button class="sm" data-a="pin" id="pinbtn" title="钉住后点别处也不收起（复制过东西会自动钉住）">钉住</button><button class="sm" data-a="hide" title="收起（Esc）">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
  <div class="bar"><i id="bar"></i></div>
- <main id="main"><div id="jobs"><div class="jtool" id="jtool"><button class="sm" data-a="jimp">＋ 导入岗位清单</button><span>学校就业中心邮件、就业网站、群里转发的，整段复制粘进来</span></div><div id="jimp"></div><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
+ <main id="main"><div id="jobs"><div class="jtool" id="jtool"><button class="sm" data-a="jimp">＋ 导入岗位清单</button><span id="lfbtn"></span><span>学校就业中心邮件、就业网站、群里转发的，整段复制粘进来</span></div><div id="jimp"></div><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
 </div>
 <div id="toast"></div>
 <script>
 const T=new URLSearchParams(location.search).get('t');
 let S=null,open=null,blockFor=null,pendReason=null,quitArmed=false;
 const LS={get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let TAB=LS.get('tab','jobs'),LANG=LS.get('lang','zh'),EDIT=null,IMP=null,PREV=null,OPENC={},IMPJ=null;
+let TAB=LS.get('tab','jobs'),LANG=LS.get('lang','zh'),EDIT=null,IMP=null,PREV=null,OPENC={},IMPJ=null,LF=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,body){
  const r=await fetch(path,{method:body?'POST':'GET',headers:{'X-T':T},body:body?JSON.stringify(body):undefined});
  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
 async function load(){S=await api('/api/state');render()}
-window.onShow=()=>{if(!EDIT&&!IMP&&!IMPJ)load().catch(()=>{})};
+window.onShow=()=>{if(!EDIT&&!IMP&&!IMPJ&&!LF)load().catch(()=>{})};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.target.matches('input,textarea'))post('/api/dock',{op:'hide'})});
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',err?4000:1600)}
 async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}
@@ -183,8 +183,8 @@ function ex(j){
   else c='<button class="sm" data-a="cl-draft">起草</button>';
   h+=`<div class="line"><span class="k">求职信</span>${c}${j.pool==='cn'?'<button class="lnk" data-a="needcl" data-on="0">不需要</button>':''}</div>`;
  }else h+=`<div class="line"><span class="k">求职信</span><button class="lnk" data-a="needcl" data-on="1">这家需要求职信 →</button></div>`;
- h+=`<div class="act">${j.url?'<button class="p" data-a="url">打开投递页 ↗</button>':'<button class="p" data-a="search" title="清单里没给链接，帮你搜官网申请页">搜官网 ↗</button>'}
-  <button class="ok" data-a="applied">已投</button><button data-a="later">稍后</button><button data-a="block">屏蔽 ${blockFor===j.id?'▴':'▾'}</button></div>`;
+ h+=`<div class="act">${j.url?'<button class="p" data-a="url">打开投递页 ↗</button>':'<button class="p" data-a="search" title="清单里没给链接，帮你搜官网申请页">搜官网 ↗</button><button data-a="setlink" title="在浏览器地址栏复制申请页网址，再点这里">粘贴链接</button>'}
+  <button class="ok" data-a="applied">已投</button><button data-a="later">稍后</button><button data-a="block">屏蔽 ${blockFor===j.id?'▴':'▾'}</button>${j.url?'<button class="lnk" data-a="setlink" title="官网换了地址：在浏览器地址栏复制新网址，再点这里">改链接</button>':''}</div>`;
  if(blockFor===j.id){
   h+=`<div class="reasons"><div class="lab">屏蔽原因</div><div class="chips">${Object.entries(S.reasons).map(([r,l])=>`<button class="chip" data-a="reason" data-r="${r}" style="${pendReason===r?'border-color:var(--acc)':''}">${l}</button>`).join('')}</div>`;
   if(pendReason==='company')h+=`<div class="confirm">将屏蔽「${esc(j.company)}」的全部岗位（公司名包含这几个字的都算），以后都不再推。</div><div class="line"><button class="p sm" data-a="confirm">确定屏蔽</button><button class="sm" data-a="cancel">取消</button></div>`;
@@ -294,7 +294,8 @@ function render(){
  $('#bar').style.width=(den?c.applied/den*100:0)+'%';
  $('#bstyle').innerHTML=Object.entries(S.bar.styles).map(([k,l])=>`<button data-a="bstyle" data-s="${k}" class="${S.bar.style===k?'on':''}">${l}</button>`).join('');
  pinUI();
- $('#jimp').innerHTML=IMPJ?jimpHTML():'';['#jtool','#done','#cols','#sum'].forEach(s=>$(s).style.display=IMPJ?'none':'');
+ $('#jimp').innerHTML=IMPJ?jimpHTML():LF?lfHTML():'';['#jtool','#done','#cols','#sum'].forEach(s=>$(s).style.display=IMPJ||LF?'none':'');
+ $('#lfbtn').innerHTML=S.nolink?`<button class="sm" data-a="lf">补链接（${S.nolink} 个岗位没链接）</button>`:'';
  $('#done').innerHTML=js.length&&!c.pending?'<div class="all">今天的都处理完了</div>':'';
  $('#cols').innerHTML=[['hk','香港'],['cn','大陆']].map(([k,l])=>{
   const rows=js.filter(j=>j.pool===k).sort((a,b)=>ORDER[a.status]-ORDER[b.status]);
@@ -315,6 +316,18 @@ function jimpHTML(){
  return `<section class="part imp"><h3>认出 ${it.length} 条<span class="r"><button class="p sm" data-a="jimpsave">加进池子（${n} 条）</button><button class="sm" data-a="jimpback">返回修改</button><button class="sm" data-a="jimpcancel">取消</button></span></h3>
  <div class="lab">灰掉的默认不加（已在池子里 / 实习 / 过了截止日），想加就勾上；「港 / 陆」点一下换池子。没给链接的，投的时候卡片上有「搜官网」。</div>
  <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="jpick" data-i="${i}" ${r.pick?'checked':''}></td><td><button class="sm" data-a="jpool" data-i="${i}">${r.pool==='hk'?'港':'陆'}</button></td><td>${esc(r.deadline||'滚动')}</td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td>${esc(r.type)}</td><td class="why">${esc(r.why||'')}${r.dup?`<small>${esc(r.dup.company)} · ${esc(r.dup.title)}</small>`:''}</td></tr>`).join('')}</table></section>`}
+function lfHTML(){
+ if(LF.step==='copy')return `<section class="part imp"><h3>批量找链接<span class="r"><button class="sm" data-a="lfcancel">取消</button></span></h3>
+ <ol><li>点这里复制 prompt（里面是 ${S.nolink>40?'截止最早的 40':S.nolink} 个没链接的岗位）：<button class="p sm" data-a="lfcopy">复制 prompt</button></li>
+ <li>打开一个<b>能联网搜索</b>的 AI（ChatGPT 打开搜索、Kimi、豆包、Perplexity…），粘贴，发送</li>
+ <li>把 AI 的回复<b>整段</b>粘贴到下面，点「识别」</li></ol>
+ <p class="warnline">AI 偶尔会编网址：识别后会逐个打开试一下，打不开的默认不勾；保存前也可以点网址自己看一眼。</p>
+ <textarea id="lftext" placeholder="把 AI 回复（包括 json 那几行）整段粘贴到这里">${esc(LF.text||'')}</textarea>
+ <div class="line"><button class="p" data-a="lfparse">识别</button></div></section>`;
+ const it=LF.items,n=it.filter(r=>r.pick).length;
+ return `<section class="part imp"><h3>AI 找到 ${it.filter(r=>r.url).length} / ${it.length} 个链接<span class="r"><button class="p sm" data-a="lfsave">保存（${n} 条）</button><button class="sm" data-a="lfback">返回</button><button class="sm" data-a="lfcancel">取消</button></span></h3>
+ <div class="lab">「能打开」是真打开试过的；「没验证」是网站不让脚本打开（不一定坏），点网址自己看一眼更放心。</div>
+ <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="lfpick" data-i="${i}" ${r.pick?'checked':''} ${r.url?'':'disabled'}></td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td style="word-break:break-all">${r.url?`<button class="lnk" data-a="lfopen" data-i="${i}" title="在浏览器里打开看看">${esc(r.url.length>70?r.url.slice(0,70)+'…':r.url)}</button>${r.where?`<br><span>${esc(r.where)}</span>`:''}`:'—'}</td><td class="why" style="${r.status==='能打开'?'color:var(--ok)':''}">${esc(r.status||'')}</td></tr>`).join('')}</table></section>`}
 function nextOpen(pool){const n=S.jobs.find(j=>j.pool===pool&&j.status==='pending');open=n?n.id:null}
 async function doAct(id,act,reason,note){
  const pool=(S.jobs.find(j=>j.id===id)||{}).pool;blockFor=pendReason=null;
@@ -366,7 +379,17 @@ document.addEventListener('click',async e=>{
  case'cancel':pendReason=null;render();break;
  case'more':post('/api/more',{pool:el.dataset.pool},'补进来了');break;
  case'quota':{const k=el.dataset.pool,d=+el.dataset.d;await post('/api/quota',{pool:k,delta:d},d>0?'改成每天 '+(S.quota[k]+1)+' 家，今天多补了一家':'改成每天 '+Math.max(1,S.quota[k]-1)+' 家，明天起生效');break}
- case'search':post('/api/open',{id,what:'search'});break;
+ case'search':post('/api/open',{id,what:'search'});toast('找到官网申请页后，在地址栏复制网址，回来点「粘贴链接」');break;
+ case'setlink':post('/api/link',{id},'链接已保存，以后都用这个');break;
+ case'lf':LF={step:'copy',text:''};IMPJ=null;render();break;
+ case'lfcancel':LF=null;render();break;
+ case'lfback':LF.step='copy';render();break;
+ case'lfcopy':post('/api/links/copy',{},'已复制 prompt，去能联网的 AI 那里粘贴');break;
+ case'lfparse':{LF.text=$('#lftext').value;toast('识别中，会逐个打开链接试一下，大约 10 秒…');
+  try{const r=await api('/api/links/parse',{text:LF.text});LF.items=r.items;LF.step='preview';render();$('#main').scrollTop=0}catch(e){toast(e.message,true)}break}
+ case'lfpick':LF.items[+el.dataset.i].pick=el.checked;render();break;
+ case'lfopen':post('/api/open',{what:'link',url:LF.items[+el.dataset.i].url});break;
+ case'lfsave':try{const d=await api('/api/links/save',{items:LF.items});S=d;LF=null;render();toast('已补上 '+d.saved+' 个链接')}catch(e){toast('出错：'+e.message,true)}break;
  case'jimp':IMPJ={step:'paste',text:''};render();break;
  case'jimpcancel':IMPJ=null;render();break;
  case'jimpback':IMPJ.step='paste';render();break;
@@ -381,7 +404,7 @@ document.addEventListener('click',async e=>{
  case'bstyle':post('/api/dock',{op:'style',style:el.dataset.s},'状态栏换成「'+el.textContent+'」');break;
  case'quit':if(quitArmed)post('/api/dock',{op:'quit'});else{quitArmed=true;el.textContent='再点一次退出'}break;
  }});
-document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value;if(e.target.id==='jimptext'&&IMPJ)IMPJ.text=e.target.value});
+document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value;if(e.target.id==='jimptext'&&IMPJ)IMPJ.text=e.target.value;if(e.target.id==='lftext'&&LF)LF.text=e.target.value});
 load().catch(e=>toast('加载失败：'+e.message,true));
-setInterval(()=>{if(!EDIT&&!IMP&&!IMPJ)load().catch(()=>{})},300000);
+setInterval(()=>{if(!EDIT&&!IMP&&!IMPJ&&!LF)load().catch(()=>{})},300000);
 </script></body></html>

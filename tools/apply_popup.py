@@ -374,6 +374,7 @@ def state():
         t = load_today()
         d = pool.select(cfg, datetime.date.today())
     have = set(j["id"] for j in t["jobs"])
+    nolink = nolink_jobs(d)
     remain = {k: (len([r for r in d[k]["ranked"] if str(r.get("id")) not in have]) if d.get(k) else 0)
               for k in ("hk", "cn")}
     jobs = []
@@ -387,7 +388,7 @@ def state():
     st["later_today"] = len(t.get("later_today", []))
     return {"date": t["date"], "jobs": jobs, "stats": st, "remain": remain, "reasons": REASONS,
             "me": me_state(), "import_prompt": profile_card.import_prompt(),
-            "jobs_prompt": import_list.import_prompt(),
+            "jobs_prompt": import_list.import_prompt(), "nolink": len(nolink),
             "quota": {k: int(cfg.get("daily_quota_" + k, 5)) for k in ("hk", "cn")},
             "bar": {"style": WIN.style, "pinned": WIN.pinned or WIN.copy_pin, "styles": STYLE_NAMES}}
 
@@ -429,6 +430,91 @@ def bar_state():
                 urgent=sum(1 for j in pend if j["left"] is not None and j["left"] <= soon),
                 next=nx and {k: nx[k] for k in ("id", "company", "title", "left", "date", "url", "pool")},
                 new=fresh_count(), week=history_stats()["week"])
+
+
+# ───────────────────────── 补链接 ─────────────────────────
+
+def nolink_jobs(d=None):
+    """池子里（过了筛选、还能投的）没有申请链接的岗位，截止早的在前。"""
+    d = d or pool.select(pool.load_config(), datetime.date.today())
+    out = [{"id": str(r["id"]), "company": r.get("company", ""), "title": r.get("title", ""),
+            "deadline": r.get("deadline") or "", "pool": k}
+           for k in ("hk", "cn") if d.get(k) for r in d[k]["alive_rows"] if not (r.get("apply_url") or "").strip()]
+    return sorted(out, key=lambda x: x["deadline"] or "9999")
+
+
+def _url_ok(u):
+    u = (u or "").strip().strip("<>\"'")
+    return u if re.match(r"https?://[^\s]+$", u) else ""
+
+
+def save_links(pairs):
+    """{id: url} → 记进 state.json 的 links，今天名单里的同一家也换上。"""
+    with LOCK:
+        st = jdlib.load_state()
+        st["links"].update(pairs)
+        jdlib.save_state(st)
+        t = load_today()
+        for j in t["jobs"]:
+            if j["id"] in pairs:
+                j["url"] = pairs[j["id"]]
+        jdlib.save_json(TODAY, t)
+
+
+def links_prompt(jobs):
+    rows = "\n".join("%s | %s | %s | %s" % (j["id"], j["company"], j["title"], j["deadline"] or "未写截止日") for j in jobs)
+    return """下面是一些校招岗位，请联网查出每个岗位的官方申请页面，只输出 JSON，用 ```json 包起来，不要别的内容。
+
+格式（id 原样照抄）：
+```json
+[{"id": "岗位 id", "url": "申请页网址", "where": "官网 / 公司招聘系统 / 招聘网站"}]
+```
+规则：
+1. 优先公司官网，或公司自己用的招聘系统（Workday、Greenhouse、Lever、SuccessFactors、Taleo、Avature、北森、Moka、Hotjob 等）上这个岗位的详情页。
+2. 找不到这个岗位的单独页面，就给这家公司的校园招聘页面。
+3. LinkedIn、JobsDB、CTgoodjobs 这类招聘网站只在官方页面都找不到时才用，where 写「招聘网站」。
+4. 实在找不到就把 url 留空 ""。不要猜、不要编网址。
+
+岗位（id | 公司 | 岗位 | 截止日）：
+""" + rows
+
+
+def links_parse(text):
+    """AI 回的 JSON → 预览用的清单（逐个打开试一下，打不开的默认不勾）。"""
+    import check_links
+    text = text or ""
+    m = re.search(r"```(?:json)?\s*(\[.*\])\s*```", text, re.S)
+    s = m.group(1) if m else text[text.find("["):text.rfind("]") + 1]
+    try:
+        items = json.loads(s)
+    except ValueError as e:
+        raise ValueError("AI 回的 JSON 读不了（%s）：让它「只输出 JSON，用 ```json 包起来」再来一次" % e)
+    known = {j["id"]: j for j in nolink_jobs()}
+    known.update({j["id"]: {"id": j["id"], "company": j["company"], "title": j["title"],
+                            "deadline": j.get("deadline") or "", "pool": j["pool"]} for j in load_today()["jobs"]})
+    out = []
+    for x in items if isinstance(items, list) else []:
+        if not isinstance(x, dict) or str(x.get("id")) not in known:
+            continue
+        out.append(dict(known[str(x["id"])], url=_url_ok(x.get("url")), where=str(x.get("where") or "")))
+    if not out:
+        raise ValueError("没对上岗位 id：让 AI 把 id 原样照抄")
+
+    def check(r):
+        if not r["url"]:
+            r["status"], r["pick"] = "没找到", False
+            return
+        code = check_links.probe(r["url"], timeout=10)
+        if code in check_links.DEAD_CODES:
+            r["status"], r["pick"] = "打不开（%s）" % code, False
+        elif isinstance(code, int) and code < 400:
+            r["status"], r["pick"] = "能打开", True
+        else:
+            r["status"], r["pick"] = "没验证（%s）" % code, True
+    import concurrent.futures as cf
+    with cf.ThreadPoolExecutor(8) as ex:
+        list(ex.map(check, out))
+    return out
 
 
 # ───────────────────────── 求职信 ─────────────────────────
@@ -501,6 +587,17 @@ def open_file(path):
         subprocess.Popen(["notepad.exe", path])
 
 
+def get_clip():
+    import win32clipboard
+    win32clipboard.OpenClipboard()
+    try:
+        return win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT) or ""
+    except TypeError:                   # 剪贴板里不是文字
+        return ""
+    finally:
+        win32clipboard.CloseClipboard()
+
+
 def set_clip(text):
     import win32clipboard
     win32clipboard.OpenClipboard()
@@ -546,6 +643,11 @@ def handle_post(path, d):
     elif path == "/api/open" and d.get("what") == "file":
         open_file(me_file(d))
         return {}
+    elif path == "/api/open" and d.get("what") == "link":     # 补链接预览里点网址看一眼
+        u = _url_ok(d.get("url"))
+        if u:
+            webbrowser.open(u)
+        return {}
     elif path == "/api/jobs/parse":
         try:
             items = import_list.recognize(d.get("text") or "")
@@ -560,6 +662,26 @@ def handle_post(path, d):
             added = import_list.save(picks, "粘贴导入 %s" % datetime.date.today().strftime("%m-%d"))
         WIN.refresh_bar()
         return dict(state(), added=len(added))
+    elif path == "/api/link":                   # 卡片上「粘贴链接 / 改链接」：读剪贴板
+        url = _url_ok(d.get("url") or get_clip())
+        if not url:
+            raise ValueError("剪贴板里不是网址：先在浏览器地址栏复制申请页的网址，再点一次")
+        save_links({str(d["id"]): url})
+    elif path == "/api/links/copy":
+        jobs = nolink_jobs()[:40]
+        if not jobs:
+            raise ValueError("池子里的岗位都有链接了")
+        set_clip(links_prompt(jobs))
+        WIN.copy_pin = True
+        return {"n": len(jobs), "pinned": True}
+    elif path == "/api/links/parse":
+        return {"items": links_parse(d.get("text") or "")}
+    elif path == "/api/links/save":
+        pairs = {str(x["id"]): x["url"] for x in d.get("items") or [] if x.get("pick") and _url_ok(x.get("url"))}
+        if not pairs:
+            raise ValueError("一条都没勾")
+        save_links(pairs)
+        return dict(state(), saved=len(pairs))
     elif path == "/api/pickfile":
         return {"path": pick_file(d.get("start") or "")}
     elif path == "/api/open":

@@ -364,13 +364,25 @@ def _pick_today(part, dirs, key, quota):
     part["today"] = sorted(picks, key=lambda r: pos[id(r)])
 
 
+def apply_links(rows, cfg):
+    """面板里补 / 改过的申请链接（state.json 的 links）盖过池子里的：
+    来源文件每天会重新生成，链接不能写回去，不然下次刷新就没了。"""
+    links = cfg.get("links") or {}
+    if links:
+        for r in rows:
+            u = links.get(str(r.get("id") or "").strip())
+            if u:
+                r["apply_url"] = u
+    return rows
+
+
 def select(cfg, now=None):
     """大陆池 + 香港池各排各的，再合并成一份结果。"""
     now = now or datetime.date.today()
     dirs = load_directions(cfg)
 
     q_cn = int(cfg.get("daily_quota_cn", cfg.get("daily_quota", 10)))
-    cn = _filter_rows(load_pool(cfg["pool_path"]), cfg, now,
+    cn = _filter_rows(apply_links(load_pool(cfg["pool_path"]), cfg), cfg, now,
                       cities=cfg.get("allowed_cities") or [],
                       excl=cfg.get("exclude_title") or [], quota=q_cn, dirs=dirs,
                       excl_type=tuple(cfg.get("exclude_type") or ()))
@@ -380,7 +392,7 @@ def select(cfg, now=None):
     hk_path = cfg.get("pool_path_hk")
     if hk_path and any(os.path.exists(x) for x in hk_path):
         q_hk = int(cfg.get("daily_quota_hk", 5))
-        hk = _filter_rows(load_pool(hk_path), cfg, now, cities=["香港"],
+        hk = _filter_rows(apply_links(load_pool(hk_path), cfg), cfg, now, cities=["香港"],
                           excl=cfg.get("exclude_title_hk") or [],
                           quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()),
                           url_dedupe=True)
