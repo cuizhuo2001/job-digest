@@ -32,7 +32,15 @@ AUTO_FILES = {"pool_path": [("data/cn_watch.csv", True), ("data/school_cn.csv", 
 def load_config(path=None):
     """规则（config.json）+ 运行状态（state.json）合并成一个 dict 给下游用。
     ⚠️ 只读：别把它整个存回 config.json，状态要写回用 jdlib.save_state()。"""
-    with io.open(path or jdlib.CFG_PATH, encoding="utf-8") as f:
+    path = path or jdlib.CFG_PATH
+    if path == jdlib.CFG_PATH and not os.path.exists(path):
+        # 第一次用、忘了复制示例配置：直接照示例建一份，别一上来就报错
+        ex = jdlib.resolve("config.example.json")
+        if os.path.exists(ex):
+            import shutil
+            shutil.copyfile(ex, path)
+            jdlib.log("没有 config.json：照 config.example.json 新建了一份（方向、城市、推送在面板「设置」里改）")
+    with io.open(path, encoding="utf-8") as f:
         cfg = json.load(f)
     for k in ("pool_path", "pool_path_hk"):
         if cfg.get(k):

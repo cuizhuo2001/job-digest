@@ -864,6 +864,17 @@ def _foreground(h):
         user32.AttachThreadInput(b, a, False)
 
 
+def _fullscreen_busy():
+    """前台有全屏程序：放 PPT、上网课共享屏幕、全屏看视频、玩游戏时。这时状态栏先藏起来，提醒也别弹。"""
+    try:
+        st = ctypes.c_int(0)
+        if ctypes.windll.shell32.SHQueryUserNotificationState(ctypes.byref(st)) == 0:
+            return st.value in (2, 3, 4)            # BUSY（全屏程序）/ D3D 全屏 / 演示模式
+    except Exception:
+        pass
+    return False
+
+
 def _tool_window(h):
     """不占任务栏按钮、不进 Alt+Tab（托盘里有图标）。"""
     ex = user32.GetWindowLongW(h, -20)
@@ -882,7 +893,9 @@ class Win:
         self.panel_last = None
         self.nudge_until = 0                          # 提醒弹出来的：到点没碰过就自己收
         self.want_nudge = 0
-        self.hidden_for_game = False
+        self.hidden_for_game = False                  # 打游戏 / 有全屏程序时整个藏起来
+        self.gaming = False
+        self.pending_nudge = 0                        # 全屏时到点的提醒：退出全屏再弹
         self.bar_last = None
         self.style = (jdlib.load_state().get("bar") or {}).get("style") or "strip"
         if self.style not in STYLES:
@@ -997,6 +1010,9 @@ class Win:
         if not self.panel:
             self.want_nudge = secs
             return
+        if self.hidden_for_game or _fullscreen_busy():
+            self.pending_nudge = secs
+            return
         self.show_panel(False)
         if not self.activated:
             self.nudge_until = time.time() + secs
@@ -1025,20 +1041,28 @@ class Win:
         user32.ShowWindow(self.bar, 4)                                   # SW_SHOWNOACTIVATE
         if self.want_nudge:
             self.nudge(self.want_nudge)
-        last_game = 0
+        last_game = last_busy = 0
+        busy = False
         while True:
             time.sleep(0.05)
             now = time.time()
             if now - last_game > 20:
                 last_game = now
-                g = gaming_guard.gaming()
-                if g and not self.hidden_for_game:
-                    self.hide_panel()
-                    user32.ShowWindow(self.bar, 0)
-                    self.hidden_for_game = True
-                elif not g and self.hidden_for_game:
-                    user32.ShowWindow(self.bar, 4)
-                    self.hidden_for_game = False
+                self.gaming = gaming_guard.gaming()
+            if now - last_busy > 1:
+                last_busy = now
+                busy = _fullscreen_busy() and not self.panel_shown
+            away = self.gaming or busy
+            if away and not self.hidden_for_game:
+                self.hide_panel()
+                user32.ShowWindow(self.bar, 0)
+                self.hidden_for_game = True
+            elif not away and self.hidden_for_game:
+                user32.ShowWindow(self.bar, 4)
+                self.hidden_for_game = False
+                if self.pending_nudge:
+                    secs, self.pending_nudge = self.pending_nudge, 0
+                    self.nudge(secs)
             if self.hidden_for_game:
                 continue
             if self.panel_shown:
