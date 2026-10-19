@@ -113,6 +113,16 @@ def build_message(d, cfg, now, dry, warn=None):
             L.append("    …另有 %d 个（见清单 md）" % (len(fresh) - 6))
         L.append("")
 
+    nod = sorted([r for key in ("hk", "cn") if d.get(key) for r in d[key].get("nodir") or []], key=lambda r: r["_d"])
+    if nod:
+        L.append("━━━ 🔍 方向没对上、%d 天内截止的 %d 个 ━━━" % (int(cfg.get("lookahead_days", 7)), len(nod)))
+        for r in nod[:5]:
+            L.append(job_line(r))
+        if len(nod) > 5:
+            L.append("    …另有 %d 个（见清单 md）" % (len(nod) - 5))
+        L.append("    想投就看清单里的链接；常在这里出现的类型，可以在面板「设置」里把方向加上")
+        L.append("")
+
     rem = active_reminders(cfg, now)
     if rem:
         L.append("━━━ 📌 手写提醒 ━━━")
@@ -191,6 +201,16 @@ def write_md(d, cfg, now):
             for r in part["urgent"]:
                 L.extend(md_job(r))
             L.append("")
+
+    nod = sorted([r for key in ("hk", "cn") if d.get(key) for r in d[key].get("nodir") or []], key=lambda r: r["_d"])
+    if nod:
+        L.append("## 🔍 方向没对上、但快截止的（%d）" % len(nod))
+        L.append("")
+        L.append("> 不在你选的方向里，所以没排进今日名单；想投就点链接。")
+        L.append("")
+        for r in nod:
+            L.extend(md_job(r))
+        L.append("")
 
     st = d["stats"]
     L.append("---")

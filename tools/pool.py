@@ -235,7 +235,7 @@ DROP_KEYS = ("已投", "死链", "屏蔽", "岗位类型", "行业/公司排除"
              "已过截止", "重复")
 
 
-def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_dedupe=False):
+def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_dedupe=False, nodir_all=False):
     """筛选顺序：已投 → 死链 → 屏蔽 → 岗位类型 → 行业/公司排除 → 标题排除 → 城市 → 方向 → 已过截止 → 重复。"""
     applied = set(str(x).strip() for x in (cfg.get("applied_ids") or []))
     # 死链名单：check_links.py 探到 404/410 后写进去的 id，同 applied_ids 的机制
@@ -267,6 +267,9 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_de
 
     drop = dict.fromkeys(DROP_KEYS, 0)
     alive = []
+    # 方向没对上、但 lookahead 天内截止的：不进今日名单，但在简报里提一句，别被悄悄筛掉
+    # （香港池全看；大陆池只看官网直查 / 学校推荐的，岗位库几千条全列就成噪音了）
+    nodir, nodir_seen = [], set()
     seen = set()
     seen_url = set()
     for r in rows:
@@ -305,6 +308,12 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_de
                     hit = ["学校推荐"]          # 学校就业中心推荐的校招岗不看方向；类型/标题/城市照常筛
                 if not hit:
                     drop["标题排除" if gex else "方向不符"] += 1
+                    dd = parse_date(r.get("deadline"))
+                    if (not gex and dd is not None and 0 <= (dd - now).days <= lookahead and k not in nodir_seen
+                            and (nodir_all or rid.startswith(("w-", "s-")))):
+                        nodir_seen.add(k)
+                        r["_d"], r["_left"], r["_score"] = dd, (dd - now).days, _num(r.get("score"))
+                        nodir.append(r)
                     continue
                 r["_dirs"] = hit
             else:
@@ -343,6 +352,7 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_de
 
     return {"urgent": urgent, "soon": soon, "today": ranked[:quota], "alive": len(alive),
             "ranked": ranked,             # 面板补位 / 再来 5 家 用的完整排序
+            "nodir": sorted(nodir, key=lambda r: r["_d"]),
             "alive_rows": alive,          # check_links.py --all 用；其他消费者忽略
             "rolling": len(rolling), "fixed": len(fixed), "total": len(rows),
             "drop": drop}
@@ -407,7 +417,7 @@ def select(cfg, now=None):
         hk = _filter_rows(apply_links(load_pool(hk_path), cfg), cfg, now, cities=["香港"],
                           excl=cfg.get("exclude_title_hk") or [],
                           quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()),
-                          url_dedupe=True)
+                          url_dedupe=True, nodir_all=True)
         _pick_today(hk, dirs, "hk", q_hk)
 
     parts = [p for p in (cn, hk) if p]

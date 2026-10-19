@@ -4,7 +4,10 @@
  "管培": {
   "title": ["管培", "管理培训生", "培训生", "储备干部", "储备人才", "Management Trainee", "Management Associate",
             "Graduate Programme", "Graduate Program", "Graduate Trainee", "Analyst Programme", "Analyst Program",
-            "Rotational"]
+            "Rotational",
+            "Management Programme", "Management Program", "Trainee Programme", "Trainee Program",
+            "Graduate Development", "Graduate Scheme", "Leadership Programme", "Leadership Program",
+            "Leadership Development", "Elite Program", "Management Candidate", "MT"]
  },
  "投行": {
   "title": ["投行", "投资银行", "并购", "股权融资", "债券承销", "债务融资", "资本市场部", "Investment Banking", "IBD",
