@@ -37,7 +37,9 @@ python tools/push.py --dry            # 预览简报，不推
 python tools/push.py                  # 真推
 python tools/refresh.py --force       # 立刻刷新数据源（大陆岗位库导入 + 香港关注公司查岗）
 python tools/watch_hk.py --only 花旗 --dry   # 只查一家关注公司，调试新加的公司用
-python tools/watch_cn.py --only 招商 --dry   # 大陆关注公司同理
+python tools/watch_cn.py --only 招商 --dry   # 大陆关注公司同理（--only 只重查这一家，别家的岗位原样保留）
+python tools/jd_flags.py --show       # 香港岗位里哪些 JD 写了要粤语 / 要香港永居
+python -m pytest                      # 改完代码跑测试（-m ui 跑面板界面，要 Playwright）
 python tools/import_mail.py --dry           # 学校就业中心邮件里会导入哪些岗位
 python tools/import_list.py 清单.txt         # 导入一段复制来的岗位清单（--save 才真加）
 python tools/add_job.py --hk --company X --title Y --url U --deadline YYYY-MM-DD   # 手动补录；--list / --remove <id>
@@ -57,4 +59,6 @@ pythonw tools/apply_popup.py          # 起状态栏 + 面板；--nudge = 已经
 - **池子太旧**：看 `push.log` 里 `↻` 开头的刷新记录；大陆岗位库的数据日期在 `data/cn_import.csv.date`，上游不更新就只能等或手动补录。
 - **用户要改个人资料 / 想导入简历**：让他在面板「我的资料」里点「编辑」或「导入简历」；要直接改文件的话，格式见 `templates/填表速查卡.example.md`（`## N 部分名` + `| 字段 | 中文 | English | 备注 |`，教育/工作每段一个 `### 第 N 段`），改完面板 5 分钟内会自己刷新。备注里的 `[AI翻译待核对:en]` 是待核对标记。
 - **用户贴了一个岗位链接说「加进去」**：先打开链接确认公司、岗位名、截止日、工作地，再用 `add_job.py` 加；链接要是具体岗位页。
-- **想关注一家新公司**：看它招聘官网的网址属于 Workday / Oracle / 北森 / Hotjob 哪种。香港岗往 `watchlist_hk.json` 加，大陆公司往 `watchlist_cn.json` 加（它的香港岗也会自动进香港池），再用 `watch_hk.py` / `watch_cn.py --only <名字> --dry` 验证能查到。
+- **用户问某个香港岗要不要粤语 / 永居**：先看 `python tools/jd_flags.py --show`；没标的不代表不要求（可能是 JD 没读到），打开 JD 原文确认。不会粤语的用户可以在面板「设置」勾「要粤语的岗位不推」（config 里是 `skip_need_cantonese`，永居是 `skip_need_hkpr`）。
+- **普华 / 毕马威没查到**：它们用 Moka，要装 Playwright（`pip install playwright` + `python -m playwright install chromium`），没装时刷新日志里会写「要装 Playwright 才能查，先跳过」。
+- **想关注一家新公司**：看它招聘官网的网址属于 Workday / Oracle / 北森 / Hotjob / SuccessFactors / PageUp / Moka 哪种。香港岗往 `watchlist_hk.json` 加，大陆公司往 `watchlist_cn.json` 加（它的香港岗也会自动进香港池），再用 `watch_hk.py` / `watch_cn.py --only <名字> --dry` 验证能查到。

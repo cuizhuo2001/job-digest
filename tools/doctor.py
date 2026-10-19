@@ -100,6 +100,16 @@ def main():
         h = (time.time() - os.path.getmtime(p)) / 3600
         say(h < 48, label, "%.0f 小时前刷新" % h, "python tools/refresh.py --force；还不行就看 push.log 里的报错")
 
+    wl = jdlib.load_json(jdlib.resolve("watchlist_cn.json"), {}).get("companies") or []
+    if any(c.get("system") == "moka" for c in wl):
+        try:
+            import playwright.sync_api  # noqa: F401
+            say(True, "Playwright", "装了（普华永道、毕马威能自动查）")
+        except Exception:
+            # 可选功能，不算问题：只提示一句
+            say(None, "Playwright（可选）", "没装，普华永道、毕马威会跳过；要查就 pip install playwright，"
+                                           "再 python -m playwright install chromium")
+
     try:
         d = pool.select(cfg, datetime.date.today())
         for k, lab in (("hk", "香港池"), ("cn", "大陆池")):

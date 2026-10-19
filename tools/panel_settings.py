@@ -87,6 +87,8 @@ def view():
         "cc_connect": bool((cfg.get("notify") or {}).get("cc_connect_config")),
         "mail": {"enabled": bool(src.get("enabled")), "senders": list(src.get("senders") or [])},
         "no_intern": "实习" in (cfg.get("exclude_type_hk") or []) and "实习" in (cfg.get("exclude_type") or []),
+        "skip_cantonese": bool(cfg.get("skip_need_cantonese")),
+        "skip_hkpr": bool(cfg.get("skip_need_hkpr")),
     }
 
 
@@ -127,6 +129,13 @@ def save(d):
         for k in ("exclude_type_hk", "exclude_type"):
             cur = [x for x in cfg.get(k) or [] if x != "实习"]
             cfg[k] = cur + ["实习"] if d["no_intern"] else cur
+
+    for key, ck in (("skip_cantonese", "skip_need_cantonese"), ("skip_hkpr", "skip_need_hkpr")):
+        if key in d:
+            if d[key]:
+                cfg[ck] = True
+            else:
+                cfg.pop(ck, None)
 
     io.open(path + ".tmp", "w", encoding="utf-8").write(json.dumps(cfg, ensure_ascii=False, indent=1) + "\n")
     os.replace(path + ".tmp", path)

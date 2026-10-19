@@ -75,7 +75,7 @@ def parse_date(s):
 
 # 池子 CSV 的标准列（import_cn / watch_hk / add_job 写出来的都是这个格式）
 POOL_FIELDS = ["id", "company", "title", "city", "deadline", "deadline_kind", "deadline_text", "apply_url",
-               "type", "industry", "tags", "score", "first_seen", "reasons"]
+               "type", "industry", "tags", "score", "first_seen", "reasons", "watch"]
 
 
 def pool_files(v):
@@ -239,11 +239,12 @@ def dir_match(r, d, tags):
 
 # ───────────────────────── 筛选与排序 ─────────────────────────
 
-DROP_KEYS = ("已投", "死链", "屏蔽", "岗位类型", "行业/公司排除", "标题排除", "城市不符", "方向不符",
+DROP_KEYS = ("已投", "死链", "屏蔽", "岗位类型", "行业/公司排除", "标题排除", "城市不符", "粤语/永居", "方向不符",
              "已过截止", "重复")
 
 
-def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_dedupe=False, nodir_all=False):
+def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_dedupe=False, nodir_all=False,
+                 jd_check=None):
     """筛选顺序：已投 → 死链 → 屏蔽 → 岗位类型 → 行业/公司排除 → 标题排除 → 城市 → 方向 → 已过截止 → 重复。"""
     applied = set(str(x).strip() for x in (cfg.get("applied_ids") or []))
     # 死链名单：check_links.py 探到 404/410 后写进去的 id，同 applied_ids 的机制
@@ -307,6 +308,10 @@ def _filter_rows(rows, cfg, now, cities, excl, quota, dirs, excl_type=(), url_de
                 continue
             if not any(c in (r.get("city") or "") for c in cities):
                 drop["城市不符"] += 1
+                continue
+            # JD 里写了要粤语 / 要香港永居，而设置里勾了「这种不推」
+            if jd_check and jd_check(rid, cfg):
+                drop["粤语/永居"] += 1
                 continue
             if dirs:
                 tags = row_tags(r)
@@ -406,6 +411,13 @@ def apply_links(rows, cfg):
     return rows
 
 
+def _jd_check(cfg):
+    if not (cfg.get("skip_need_cantonese") or cfg.get("skip_need_hkpr")):
+        return None
+    import jd_flags
+    return jd_flags.blocked_by
+
+
 def select(cfg, now=None):
     """大陆池 + 香港池各排各的，再合并成一份结果。"""
     now = now or datetime.date.today()
@@ -425,7 +437,7 @@ def select(cfg, now=None):
         hk = _filter_rows(apply_links(load_pool(hk_path), cfg), cfg, now, cities=["香港"],
                           excl=cfg.get("exclude_title_hk") or [],
                           quota=q_hk, dirs=dirs, excl_type=tuple(cfg.get("exclude_type_hk") or ()),
-                          url_dedupe=True, nodir_all=True)
+                          url_dedupe=True, nodir_all=True, jd_check=_jd_check(cfg))
         _pick_today(hk, dirs, "hk", q_hk)
 
     parts = [p for p in (cn, hk) if p]

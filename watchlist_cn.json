@@ -7,6 +7,8 @@
   {"name": "华泰证券", "system": "hotjob", "suite": "SU5d4bd89a9b0d7889b8422dbe", "industry": "证券"},
   {"name": "招商证券", "system": "hotjob", "suite": "SU629dbc0c0dcad452299bc0f7", "industry": "证券"},
   {"name": "广发证券", "system": "hotjob", "suite": "SU625527c30dcad4021443cdda", "industry": "证券"},
-  {"name": "德勤 Deloitte 中国", "system": "hotjob", "host": "ehjobs.deloitte.com.cn", "suite": "SU649e304a6a9f0ef690533e9a", "industry": "会计师事务所"}
+  {"name": "德勤 Deloitte 中国", "system": "hotjob", "host": "ehjobs.deloitte.com.cn", "suite": "SU649e304a6a9f0ef690533e9a", "industry": "会计师事务所"},
+  {"name": "普华永道 PwC", "system": "moka", "org": "pwc", "site": "148260", "industry": "会计师事务所"},
+  {"name": "毕马威 KPMG", "system": "moka", "org": "kpmg", "site": "74217", "industry": "会计师事务所"}
  ]
 }

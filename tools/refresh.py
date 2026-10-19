@@ -103,6 +103,12 @@ def _refresh(cfg, force=False):
         except Exception as e:
             jdlib.log("  ✗ %s刷新失败：%s: %s" % (label, type(e).__name__, e))
             errors.append("%s（%s）" % (label, str(e)[:80]))
+    # 新进池子的香港岗位：读一遍 JD，标出「要粤语 / 要香港永居」（读过的不再读）
+    try:
+        import jd_flags
+        jd_flags.update(cfg)
+    except Exception as e:
+        jdlib.log("  ✗ 读 JD（粤语 / 永居）失败：%s: %s" % (type(e).__name__, e))
     return notes, errors
 
 

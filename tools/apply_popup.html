@@ -93,6 +93,8 @@ input[type=text]{font:inherit;font-size:13px;border:1px solid var(--line);backgr
 .chip.ai+button{border-radius:0 8px 8px 0;border-left:0;font-size:11px;padding:0 8px;color:var(--acc);border-color:var(--acc)}
 .mk.ai .chip{border-radius:8px 0 0 8px}
 .chip.warn{border-color:var(--warn);color:var(--warn)}
+.flag{display:inline-block;font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:0 5px;margin:2px 4px 0 0}
+.flag.soft{color:var(--mute);border-color:var(--line)}
 .mcard{border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:8px;background:var(--bg)}
 .mcard .ct{display:flex;gap:8px;align-items:baseline;cursor:pointer;margin-bottom:2px}
 .mcard .ct b{font-weight:700;font-size:13.5px}
@@ -208,9 +210,10 @@ function ex(j){
 function row(j){
  const o=open===j.id&&j.status==='pending';
  const meta=[j.type,j.city==='香港'?'':j.city,j.later?'已推迟 '+j.later+' 次':''].filter(Boolean).join(' · ');
+ const fl=(j.flags||[]).map(f=>`<span class="flag ${f==='粤语加分'?'soft':''}" title="${f==='粤语加分'?'JD 写着会粤语加分，不会也能投':'JD 里写了这条要求（从 JD 原文认出来的，投之前再看一眼）'}">${f==='粤语加分'?'':'⚠️ '}${esc(f)}</span>`).join('');
  return `<div class="row ${j.status} ${o?'open':''}" data-id="${esc(j.id)}">
  <div class="hd" data-a="toggle"><span class="dot ${dot(j)}"></span><span class="co">${esc(j.company)}</span>${pill(j)}${j.status!=='pending'?'<button class="sm" data-a="undo">撤销</button>':''}</div>
- <div class="ti">${esc(j.title)}</div>${meta?`<div class="meta">${esc(meta)}</div>`:''}${o?ex(j):''}</div>`}
+ <div class="ti">${esc(j.title)}</div>${meta||fl?`<div class="meta">${esc(meta)}${meta&&fl?' ':''}${fl}</div>`:''}${o?ex(j):''}</div>`}
 // ───────── 我的资料 ─────────
 const isEn=()=>LANG==='en';
 function fval(f,c){if(!c)return'';if(!f.bi)return c.zh||c.en||'';return (isEn()?c.en:c.zh)||''}
@@ -344,7 +347,7 @@ function lfHTML(){
  <div class="lab">「能打开」是真打开试过的；「没验证」是网站不让脚本打开（不一定坏），点网址自己看一眼更放心。</div>
  <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="lfpick" data-i="${i}" ${r.pick?'checked':''} ${r.url?'':'disabled'}></td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td style="word-break:break-all">${r.url?`<button class="lnk" data-a="lfopen" data-i="${i}" title="在浏览器里打开看看">${esc(r.url.length>70?r.url.slice(0,70)+'…':r.url)}</button>${r.where?`<br><span>${esc(r.where)}</span>`:''}`:'—'}</td><td class="why" style="${r.status==='能打开'?'color:var(--ok)':''}">${esc(r.status||'')}</td></tr>`).join('')}</table></section>`}
 function setDraft(v){return {dirs:new Set(v.selected),cities:new Set(v.cities),other:'',chans:new Set(v.channels),sec:{},
- mail:v.mail.enabled,senders:v.mail.senders.join('\n'),intern:v.no_intern}}
+ mail:v.mail.enabled,senders:v.mail.senders.join('\n'),intern:v.no_intern,yue:v.skip_cantonese,pr:v.skip_hkpr}}
 function renderSet(){
  const el=$('#set');
  if(!SETV){el.innerHTML='<div class="lab">读取中…</div>';api('/api/settings').then(v=>{SETV=v;SETD=setDraft(v);renderSet()}).catch(e=>toast(e.message,true));return}
@@ -366,6 +369,9 @@ function renderSet(){
  ${D.mail?`<div class="line"><span class="k" style="width:auto">发件人</span><textarea id="ssenders" style="flex:1;min-height:52px;font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 8px" placeholder="一行一个，比如 cbcareer@cityu.edu.hk">${esc(D.senders)}</textarea></div>`:''}</section>`;
  h+=`<section class="part"><h3>实习<span class="r">${opt('sintern','不推实习（香港、大陆都是）',D.intern)}</span></h3>
  <div class="lab">一年制港硕毕业就要全职，一般不投实习；读两年的、想先找暑期实习的就把勾去掉。</div></section>`;
+ h+=`<section class="part"><h3>香港岗位的语言 / 身份要求</h3>
+ <div>${opt('syue','我不会粤语：要粤语的岗位不推',D.yue)}${opt('spr','要求香港永居的岗位不推',D.pr)}</div>
+ <div class="lab">每个香港岗位第一次出现时会读一遍 JD，写了要粤语、要香港永居的会在岗位旁边标 ⚠️。不勾就只标不筛。<b>没标 ≠ 不要求</b>：有的招聘网站读不到 JD，投之前还是扫一眼。只写「能在香港合法工作」的不算（IANG 可以）。自己导入的岗位只标不筛。</div></section>`;
  h+=`<div class="line" style="margin-bottom:20px"><button class="p" data-a="ssave">保存</button><button data-a="stest">保存并给勾选的渠道发测试</button><span class="lab" style="margin:0">改了方向 / 城市，明天的简报生效；今天想看就点「今日岗位」里的「再来 5 家」。改之前会备份成 config.json.bak</span></div>`;
  el.innerHTML=h}
 function setPayload(){
@@ -373,7 +379,7 @@ function setPayload(){
  const other=D.other.split(/[,，、\s]+/).map(s=>s.trim()).filter(Boolean);
  return {directions:order.filter(n=>D.dirs.has(n)),cities:v.city_choices.filter(c=>D.cities.has(c)).concat(other),
   channels:v.channel_defs.map(c=>c.key).filter(k=>D.chans.has(k)),secrets:D.sec,
-  mail:{enabled:D.mail,senders:D.senders.split('\n')},no_intern:D.intern}}
+  mail:{enabled:D.mail,senders:D.senders.split('\n')},no_intern:D.intern,skip_cantonese:D.yue,skip_hkpr:D.pr}}
 async function setSave(){const r=await api('/api/settings/save',setPayload());SETV=r.settings;SETD=setDraft(SETV);return r}
 function nextOpen(pool){const n=S.jobs.find(j=>j.pool===pool&&j.status==='pending');open=n?n.id:null}
 async function doAct(id,act,reason,note){
@@ -431,6 +437,8 @@ document.addEventListener('click',async e=>{
  case'schan':el.checked?SETD.chans.add(el.dataset.n):SETD.chans.delete(el.dataset.n);renderSet();break;
  case'smail':SETD.mail=el.checked;renderSet();break;
  case'sintern':SETD.intern=el.checked;renderSet();break;
+ case'syue':SETD.yue=el.checked;renderSet();break;
+ case'spr':SETD.pr=el.checked;renderSet();break;
  case'ssave':try{await setSave();SETR={};renderSet();toast('已保存')}catch(e){toast(e.message,true)}break;
  case'stest':{const ch=[...SETD.chans];if(!ch.length){toast('先勾一个推送渠道',true);break}
   try{await setSave();toast('发测试中…');const r=await api('/api/settings/test',{channels:ch});SETR=r.results;renderSet();

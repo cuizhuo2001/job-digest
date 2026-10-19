@@ -20,6 +20,7 @@
   {"name": "中信建投国际 CSCI", "system": "beisen", "host": "cscihk.zhiye.com", "industry": "证券"},
   {"name": "渣打 Standard Chartered", "system": "sfsf", "host": "jobs.standardchartered.com", "locale": "en_GB", "location": "Hong Kong", "industry": "银行"},
   {"name": "中银香港 BOCHK", "system": "pageup", "site": "798", "loc": "香港", "industry": "银行"},
-  {"name": "安永 EY 香港", "system": "hotjob", "host": "eyhk.hotjob.cn", "suite": "SU64cb4dea6202cc125d4a96f7", "industry": "会计师事务所"}
+  {"name": "安永 EY 香港", "system": "hotjob", "host": "eyhk.hotjob.cn", "suite": "SU64cb4dea6202cc125d4a96f7", "industry": "会计师事务所"},
+  {"name": "汇丰 HSBC", "system": "csbhtml", "host": "apply.careers.hsbc.com", "path": "/emergingtalent", "locationsearch": "Hong Kong", "brands": {"Hang Seng": "恒生银行 Hang Seng"}, "industry": "银行"}
  ]
 }

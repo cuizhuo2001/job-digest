@@ -1,5 +1,7 @@
 # 今日投递 · job-digest
 
+[![tests](https://github.com/cuizhuo2001/job-digest/actions/workflows/tests.yml/badge.svg)](https://github.com/cuizhuo2001/job-digest/actions/workflows/tests.yml)
+
 给**商科港硕**（香港 + 大陆校招一起投）的每日投递助手：每天从岗位池里挑出**今天该投的 N 家**推到手机（微信 / 飞书 / Telegram / 邮件）；电脑上有一个常驻的小状态栏，点开就是投递面板，帮你一家一家投完。
 
 秋招最累的往往不是投递本身，而是每天打开电脑先花半小时想今天投哪几家、哪家快截止了、简历放哪了、上次填的英文名怎么拼。这个工具就是来省掉这半小时的。
@@ -20,13 +22,14 @@
 
 ## 它做什么
 
-- **岗位数据自动更新**：大陆岗位每天从公开岗位库导入（5000+ 条 2027 秋招）；每天直接去 25 家关注公司的招聘官网查（外资行、本地银行、四大、资管保险、中资券商，带岗位直链，新挂出来的会单独提醒）；自己看到的岗位一条命令补录
+- **岗位数据自动更新**：大陆岗位每天从公开岗位库导入（5000+ 条 2027 秋招）；每天直接去 28 家关注公司的招聘官网查（外资行、汇丰恒生中银等本地银行、四大、资管保险、中资券商，带岗位直链，新挂出来的会单独提醒）；自己看到的岗位一条命令补录
+- **粤语 / 香港永居要求**：每个香港岗位第一次出现时读一遍 JD，写了要粤语、要香港永居的在岗位旁边标 ⚠️（「粤语加分」的单独标，不算硬要求）。设置里可以打开「我不会粤语：要粤语的岗位不推」「要求香港永居的岗位不推」，默认只标不筛。**没标 ≠ 不要求**：有的招聘网站读不到 JD，投之前还是扫一眼；只写「能在香港合法工作」的不算（IANG 可以）
 - **每日简报**：按截止日排序（3 天内截止 → 7 天内截止 → 滚动招聘），香港、大陆各推 N 家；同时写一份带完整链接的 `今日投递清单.md`
 - **按方向筛**：内置 21 个商科方向（管培、投行、风控合规、审计税务、咨询、市场品牌、人力资源、供应链……），选几个想投的就行，还能给某个方向固定每天的名额
 - **状态栏 + 投递面板**（Windows）：桌面上常驻一个小状态栏（今日投递 3/10 · 港/陆各几家 · 最近截止 · 新岗），点一下面板直接弹出来，点别处自动收起
   - 状态栏三种样式：**顶部条** / **卡片**（直接显示下一家，带「打开投递页」按钮）/ **胶囊**，在面板右上角或托盘菜单里换；拖到哪就停在哪，位置会记住
   - 在面板里复制过东西就自动钉住，去网页里粘贴时面板不会收起；面板拖到旁边，下次打开还在那儿
-  - 「设置」标签页：方向、城市打勾，推送渠道填 key 后点一下发测试，学校邮件导入、要不要推实习都在这里改（不用碰 config.json，改之前自动备份）
+  - 「设置」标签页：方向、城市打勾，推送渠道填 key 后点一下发测试，学校邮件导入、要不要推实习、要粤语 / 永居的岗位推不推都在这里改（不用碰 config.json，改之前自动备份）
   - 每家岗位一键打开申请页、复制简历路径（香港岗自动用英文简历、大陆岗用中文简历）
   - 每家岗位四种状态：**已投** / **稍后**（明天排最前）/ **屏蔽**（要选原因，当场从池子补一家）/ **撤销**
   - 每天推几家在面板里点 − / ＋ 调（调大当天就补上）
@@ -49,7 +52,7 @@
 
 ## 它不做什么
 
-- **不是全网岗位**。数据来自一个公开岗位库 + 25 家关注公司 + 学校清单 + 你手动补录的，没覆盖到的公司要自己加（见「岗位数据从哪来」）。
+- **不是全网岗位**。数据来自一个公开岗位库 + 28 家关注公司 + 学校清单 + 你手动补录的，没覆盖到的公司要自己加（见「岗位数据从哪来」）。
 - **不替你投**。它只负责告诉你今天投什么，并把材料准备好；网申表还是你自己填。
 - **链接体检只认 404/410**。如果链接只指到校招首页、而不是具体岗位，它查不出来，所以录入时请直接填岗位详情页。
 
@@ -75,9 +78,9 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 
 | 来源 | 文件 | 怎么更新 |
 |---|---|---|
-| 🇨🇳 **大陆关注公司自动查岗** | `data/cn_watch.csv`（香港岗进 `data/cn_watch_hk.csv`） | 每次推送前去 `watchlist_cn.json` 里的公司官网（中信、中金、华泰、招商、广发、德勤中国）拿校园招聘岗位，只留工作地在 `allowed_cities` 里的，全是岗位直链，带官网截止日 |
+| 🇨🇳 **大陆关注公司自动查岗** | `data/cn_watch.csv`（香港岗进 `data/cn_watch_hk.csv`） | 每次推送前去 `watchlist_cn.json` 里的公司官网（中信、中金、华泰、招商、广发、德勤中国、普华永道、毕马威）拿校园招聘岗位，只留工作地在 `allowed_cities` 里的，全是岗位直链，带官网截止日 |
 | 🇨🇳 **大陆岗位库** | `data/cn_import.csv` | 每次推送前自动从开源项目 [job-autopilot](https://github.com/keii-2596/job-autopilot)（MIT）公开的 2027 届秋招岗位快照导入，5000+ 条，自动打方向标签 |
-| 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 19 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
+| 🇭🇰 **关注公司自动查岗** | `data/hk_watch.csv` | 每次推送前去 `watchlist_hk.json` 里 20 家公司的招聘系统搜 graduate / trainee / 2027 岗，只留工作地在香港的，全是岗位直链 |
 | 🇭🇰 **自带校招名单** | `examples/pool_hk_2027.csv` | 人工核实的 33 条（见下一节），不自动更新 |
 | 🏫 **学校就业中心** | `data/school_hk.csv`、`data/school_cn.csv` | 就业中心发的岗位邮件自动导入（`sources.mail_import`，要经典版 Outlook 登着学校邮箱；学校推荐的校招岗不看方向，实习 / 标题排除词 / 城市照常筛，想让它也按方向筛就设 `school_follow_directions: true`）；就业网站、群里转发的清单在面板「导入岗位清单」里粘贴 |
 | ✍️ **手动补录** | `data/manual_hk.csv`、`data/manual_cn.csv` | `python tools/add_job.py`，或面板「导入岗位清单」 |
@@ -86,8 +89,18 @@ python tools/push.py --dry    # 第一次会下载岗位数据（约 1 分钟）
 
 **大陆岗位库的局限**：上游维护者手动同步，不是每天更新（简报会显示数据日期，超过 5 天会提醒）；一条记录常是一家公司的整份校招公告，链接多是公司校招首页，投之前要在官网里找具体岗位。重点公司建议加进 `watchlist_cn.json` 直接查官网：支持 Hotjob（网址 `wecruit.hotjob.cn/SU…/pb/school.html`）、北森（`*.zhiye.com`）、Workday、Oracle，以及中信证券官网。
 
-**关注公司**：支持 7 种招聘系统 —— Workday（`*.myworkdayjobs.com`）、Oracle（`*.oraclecloud.com`）、北森（`*.zhiye.com`）、SAP SuccessFactors（网址像 `/job/<标题>/<数字>/`）、PageUp（`careers.pageuppeople.com`）、Hotjob（`*.hotjob.cn`，也支持公司自己的域名）、中信证券官网。香港默认 19 家：德银、大华、三菱日联、花旗、摩根士丹利、贝莱德、道富、景顺、宏利、友邦、永明、万事达、耐克、摩根大通、施罗德、中信建投国际、**渣打、中银香港、安永香港**；大陆 6 家：中信、中金、华泰、招商、广发、**德勤中国**（它们的香港岗也会进香港池）。
-用 Moka 的公司（普华永道、毕马威）岗位数据是加密的，查不了，放在自带校招名单里；恒生、东亚也在名单里。想加公司，打开它的招聘官网看网址属于哪种，照格式往 `watchlist_hk.json` 里加一条，然后：
+**关注公司**：支持 9 种招聘系统 —— Workday（`*.myworkdayjobs.com`）、Oracle（`*.oraclecloud.com`）、北森（`*.zhiye.com`）、SAP SuccessFactors（网址像 `/job/<标题>/<数字>/`）、SuccessFactors 老式招聘站（汇丰 `apply.careers.hsbc.com` 这种，`csbhtml`）、PageUp（`careers.pageuppeople.com`）、Hotjob（`*.hotjob.cn`，也支持公司自己的域名）、中信证券官网、Moka（`app.mokahr.com`，要装 Playwright，见下）。香港默认 20 家：德银、大华、三菱日联、花旗、摩根士丹利、贝莱德、道富、景顺、宏利、友邦、永明、万事达、耐克、摩根大通、施罗德、中信建投国际、渣打、中银香港、安永香港、**汇丰（含恒生，毕业生岗带官网截止日）**；大陆 8 家：中信、中金、华泰、招商、广发、德勤中国、**普华永道、毕马威**（它们的香港岗也会进香港池）。
+
+**普华永道、毕马威（Moka）要多装一样东西**：它们的数据接口是加密的，只能开一个看不见的浏览器把页面渲染出来再读，所以要装 Playwright（约 150MB）：
+
+```bash
+pip install playwright
+python -m playwright install chromium
+```
+
+没装就自动跳过这两家，不算出错（自带校招名单里有它们的校招总表链接）。东亚银行（PeopleSoft）还查不了，在自带名单里。
+
+想加公司，打开它的招聘官网看网址属于哪种，照格式往 `watchlist_hk.json` 里加一条，然后：
 
 ```bash
 python tools/watch_hk.py --only 公司名 --dry    # 只查这一家，看能不能查到
@@ -234,7 +247,7 @@ config.example.json   规则：池子在哪、每天几家、排除哪些词、�
 profile.example.json  求职信用的姓名邮箱、速查卡位置、求职信模板
 templates/            求职信模板、填表速查卡示例（「我的资料」的文件格式）
 presets/商科.json     21 个商科方向的关键词
-watchlist_hk.json     香港关注公司清单
+watchlist_hk.json     香港关注公司清单（watchlist_cn.json 是大陆的）
 examples/             示例岗位池 + 香港 2027 校招名单
 tools/
   pool.py             读池子 → 过滤 → 排序（数据层）
@@ -242,7 +255,9 @@ tools/
   refresh.py          刷新数据源
   import_cn.py        大陆岗位库导入
   watch_hk.py         香港关注公司查岗
-  watch_cn.py         大陆关注公司查岗（Hotjob / 中信官网 / 北森…）
+  watch_cn.py         大陆关注公司查岗（Hotjob / 中信官网 / 北森 / Moka…）
+  jd_flags.py         读香港岗位的 JD，标「要粤语 / 要香港永居」（缓存在 data/jd_flags.json）
+  doctor.py           自检
   import_list.py      认岗位清单（学校邮件 / 就业网站 / 群消息）
   import_mail.py      学校就业中心邮件自动导入（Outlook）
   add_job.py          手动补录
@@ -253,11 +268,24 @@ tools/
   jdlib.py            公共：路径、状态、个人资料、推送
   gaming_guard.py     检测游戏进程
   cl/                 求职信 md → docx → pdf
+tests/                自动测试（python -m pytest）
 SKILL.md              给 Claude Code 当 skill 用的说明
 docs/小白教程.md       不会写代码也能装：AI 安装 prompt + 手动教程
 ```
 
 **不会进 git 的**（见 `.gitignore`）：`填表速查卡.md`（你的个人资料）、`data/`（自动导入、查岗、手动补录的岗位）、`config.json`、`profile.json`、`secrets.json`、`state.json`（已投、稍后、屏蔽、死链的记录）、`history.jsonl`（每次操作的日志）、`push.log`。
+
+## 测试
+
+改了代码先跑一遍（不联网、不碰你自己的配置，测试在临时目录里跑）：
+
+```bash
+pip install pytest
+python -m pytest            # 核心逻辑：筛选、去重、查岗、推送、设置、粤语 / 永居标签
+python -m pytest -m ui      # 面板界面（要 Windows + Playwright）
+```
+
+每次推送到 GitHub，会在 Windows / macOS / Linux 上自动跑核心逻辑测试（`.github/workflows/tests.yml`）。
 
 ## 和 Claude Code 一起用
 
@@ -266,7 +294,8 @@ docs/小白教程.md       不会写代码也能装：AI 安装 prompt + 手动�
 ## 已知局限
 
 - 面板和定时任务只支持 Windows；每日简报本身跨平台，在 macOS / Linux 上可以用 cron 跑 `python tools/push.py`
-- 大陆岗位库更新频率取决于上游；香港自动查岗只覆盖 `watchlist_hk.json` 里的公司，而且只认 Workday / Oracle / 北森三种招聘系统（hotjob、Moka、SuccessFactors 等还没适配）
+- 大陆岗位库更新频率取决于上游；自动查岗只覆盖两份关注名单里的公司，东亚银行（PeopleSoft）这类没适配的系统还查不了
+- 粤语 / 永居标签是按 JD 里的关键词认的：读不到 JD 的岗位不打标签，个别写法也可能认错，投之前以 JD 原文为准
 - 「生成 PDF」要装 Microsoft Word（通过 COM 转换）
 
 ## License

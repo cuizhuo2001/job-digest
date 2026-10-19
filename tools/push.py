@@ -22,6 +22,7 @@ sys.path.insert(0, HERE)
 
 import jdlib  # noqa: E402
 import pool  # noqa: E402
+import jd_flags  # noqa: E402
 import refresh  # noqa: E402
 from jdlib import log  # noqa: E402
 
@@ -55,9 +56,10 @@ def left_label(r):
 def job_line(r, tag=""):
     t = (r.get("type") or "").strip()
     tag = ("· %s " % t) if t else ""
-    return "• [%s] %s %s%s\n    %s" % (
+    warn = "".join("  · " + x if x == "粤语加分" else "  ⚠️" + x for x in jd_flags.labels(r.get("id")))
+    return "• [%s] %s %s%s\n    %s%s" % (
         left_label(r), r.get("company", "?"), tag,
-        pool.short_title(r.get("title")), (r.get("city") or "")[:28])
+        pool.short_title(r.get("title")), (r.get("city") or "")[:28], warn)
 
 
 def region_block(L, flag, label, part):
@@ -171,6 +173,9 @@ def md_job(r, i=None):
            "    - %s ｜ %s ｜ 匹配分 %g ｜ id=%s" % (
                r.get("city"), when, r.get("_score", 0), r.get("id")),
            "    - %s" % r.get("apply_url")]
+    lab = jd_flags.labels(r.get("id"))
+    if lab:
+        out.insert(2, "    - JD 里写着：%s" % "、".join(lab))
     return out
 
 

@@ -12,6 +12,7 @@ job-digest · 香港「关注公司」自动查岗
     oracle    *.oraclecloud.com（Oracle Recruiting Cloud / CandidateExperience）
     beisen    北森 *.zhiye.com
     sfsf      SAP SuccessFactors 招聘站（网址像 /job/<标题>/<数字>/，渣打这类）
+    csbhtml   SuccessFactors 老式招聘站：搜索页是服务器直接出的网页（汇丰 / 恒生校招站）
     pageup    PageUp（careers.pageuppeople.com/<编号>/…，中银香港这类）
     hotjob / citics   写在 watch_cn.py 里，这边也能用（安永香港是 hotjob）
 
@@ -92,7 +93,8 @@ def workday(c, keywords, want=is_hk):
     with cf.ThreadPoolExecutor(4) as ex:
         for posts in ex.map(search, keywords):
             for p in posts:
-                found.setdefault(p["externalPath"], p)
+                if p.get("externalPath"):                # 列表里偶尔夹着没有详情页的条目（友邦就有）
+                    found.setdefault(p["externalPath"], p)
     cand = [(path, p) for path, p in found.items() if job_type(p.get("title") or "")]
 
     def locs_of(item):
@@ -232,7 +234,79 @@ def pageup(c, keywords, want=is_hk):
     return out
 
 
-SYSTEMS = {"workday": workday, "oracle": oracle, "beisen": beisen, "sfsf": sfsf, "pageup": pageup}
+BROWSER_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/130.0 Safari/537.36"}
+
+
+def _get_html(url):
+    req = urllib.request.Request(url, headers=BROWSER_UA)
+    with urllib.request.urlopen(req, timeout=40) as r:
+        return r.read().decode("utf-8", "ignore")
+
+
+def csbhtml(c, keywords, want=is_hk):
+    """SuccessFactors 老式招聘站（汇丰 emerging talent 这类）：/search/ 结果是服务器直接出的网页，一页 25 条按 startrow 翻。
+    毕业生 / 管培岗再打开详情页读「Closing Date」（实习不读，反正按规则不推）。
+    c["brands"] = {"标题里的词": "公司名"}：同一个站挂着几家公司时（汇丰站里有恒生）按标题分开。"""
+    import html as _html
+    host, prefix, loc = c["host"], c.get("path", ""), c.get("locationsearch", "")
+    if loc and not want(loc):
+        return []
+    found = {}
+    for start in range(0, 500, 25):
+        s = _get_html("https://%s%s/search/?q=&locationsearch=%s&locale=%s&startrow=%d" % (
+            host, prefix, urllib.parse.quote(loc), c.get("locale", "en_GB"), start))
+        new = 0
+        for h, jid, t in re.findall(r'href="(%s/job/[^"]+?/(\d+)/)"[^>]*>(.*?)</a>' % re.escape(prefix), s, re.S):
+            title = _html.unescape(re.sub("<.*?>", "", t)).strip()
+            if title and jid not in found:
+                found[jid] = (h, title)
+                new += 1
+        m = re.search(r"Showing \d+ to (\d+) of (\d+)", s)
+        if not new or (m and int(m.group(1)) >= int(m.group(2))):
+            break
+
+    def deadline(url):
+        try:
+            txt = re.sub("<.*?>", " ", _get_html(url))
+            m = re.search(r"Closing Date[^A-Za-z0-9]{0,40}([A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2}, \d{4})", txt)
+            return datetime.datetime.strptime(m.group(1), "%a %b %d, %Y").date().isoformat() if m else ""
+        except Exception:
+            return ""
+
+    rows = [(jid, h, title, job_type(title)) for jid, (h, title) in found.items()]
+    rows = [r for r in rows if r[3]]
+    grads = [r for r in rows if r[3] == "校招"]
+    with cf.ThreadPoolExecutor(4) as ex:
+        ends = dict(zip([r[0] for r in grads], ex.map(lambda r: deadline("https://%s%s" % (host, r[1])), grads)))
+    out = []
+    for jid, h, title, typ in rows:
+        j = {"key": jid, "title": title, "type": typ, "posted": "", "deadline": ends.get(jid, ""),
+             "locs": [loc or "?"], "url": "https://%s%s" % (host, h)}
+        co = next((name for kw, name in (c.get("brands") or {}).items() if kw.lower() in title.lower()), None)
+        if co:
+            j["company"] = co
+        out.append(j)
+    return out
+
+
+SYSTEMS = {"workday": workday, "oracle": oracle, "beisen": beisen, "sfsf": sfsf, "pageup": pageup, "csbhtml": csbhtml}
+
+
+class Skip(Exception):
+    """可选功能没装（比如查 Moka 要的 Playwright）：这家公司静悄悄跳过，不算失败、不天天报错。"""
+
+
+def kept_rows(old_rows, all_names, queried, failed):
+    """这次没查（--only 只查了别家）或者查失败的公司：沿用上次的岗位，别让它们从池子里消失。
+    不然网站临时抽风一次，下次恢复时它家全部岗位都会被当成「新」再推一遍。
+    已经从关注名单里删掉的公司不保留。"""
+    out = []
+    for r in old_rows:
+        w = r.get("watch") or r.get("company")
+        if w in all_names and (w not in queried or w in failed):
+            out.append(r)
+    return out
 
 
 def systems():
@@ -246,6 +320,7 @@ def systems():
 def run(cfg, only=None, dry=False):
     o = opts(cfg)
     wl = jdlib.load_json(jdlib.resolve(o["watchlist"]), {})
+    all_names = {c["name"] for c in wl.get("companies") or []}
     companies = [c for c in wl.get("companies") or [] if not only or only in c["name"]]
     out_path = jdlib.resolve(o["out"])
     old = {}
@@ -262,7 +337,7 @@ def run(cfg, only=None, dry=False):
             raise RuntimeError("不认识的招聘系统 %r" % c.get("system"))
         return fn(c, o["keywords"], want=is_hk)
 
-    rows, fails = [], []
+    rows, fails, failed, skipped = [], [], set(), set()
     with cf.ThreadPoolExecutor(8) as ex:
         futs = {ex.submit(one, c): c for c in companies}
         for f in cf.as_completed(futs):
@@ -270,29 +345,42 @@ def run(cfg, only=None, dry=False):
             try:
                 jobs = f.result()
             except Exception as e:
-                fails.append("%s（%s）" % (c["name"], str(e)[:60]))
+                failed.add(c["name"])
+                if isinstance(e, Skip):
+                    skipped.add(c["name"])
+                else:
+                    fails.append("%s（%s）" % (c["name"], str(e)[:60]))
                 continue
+            if jobs and any(j.get("jd") for j in jobs):
+                import jd_flags                        # 列表里自带 JD 的（Moka）：顺手认粤语 / 永居，省得再去读
+                jd_flags.remember({"w-" + hashlib.sha1((c["name"] + "|" + str(j["key"])).encode("utf-8")).hexdigest()[:10]:
+                                   j["jd"] for j in jobs if j.get("jd")})
             for j in jobs:
                 rid = "w-" + hashlib.sha1((c["name"] + "|" + j["key"]).encode("utf-8")).hexdigest()[:10]
-                r = {"id": rid, "company": c["name"], "title": j["title"], "city": "香港",
+                r = {"id": rid, "company": j.get("company") or c["name"], "title": j["title"], "city": "香港",
                      "deadline": j.get("deadline", ""), "deadline_kind": "fixed" if j.get("deadline") else "until_full",
                      "deadline_text": j.get("deadline") or "官网未列截止日", "apply_url": j["url"],
                      "type": j["type"], "industry": c.get("industry", ""), "score": 60,
                      # 见过的保留原来的日期（基线那批是空的，也要保留空）；
                      # 第一次跑（还没有旧文件）只建基线，不把全部岗位都标成「新」
                      "first_seen": old[rid].get("first_seen", "") if rid in old else (today if old else ""),
-                     "reasons": "自动查岗（%s）；发布 %s" % (c["system"], j.get("posted") or "?")}
+                     "reasons": "自动查岗（%s）；发布 %s" % (c["system"], j.get("posted") or "?"), "watch": c["name"]}
                 r["tags"] = pool.auto_tags(r, presets)
                 rows.append(r)
+    kept = kept_rows(old.values(), all_names, {c["name"] for c in companies}, failed)
     rows.sort(key=lambda r: (r["company"], r["title"]))
     new = [r for r in rows if old and r["id"] not in old]
+    rows += kept
     if dry:
         for r in rows:
             print("  %s %-4s %-24s %s" % ("🆕" if r in new else "  ", r["type"], r["company"][:24], r["title"][:70]))
     else:
         pool.write_pool(out_path, rows)
+    n = len(companies) - len(skipped)
     msg = "香港关注公司 %d/%d 家查到 %d 个香港校招/实习岗（新 %d）" % (
-        len(companies) - len(fails), len(companies), len(rows), len(new))
+        n - len(fails), n, len(rows) - len(kept), len(new))
+    if skipped:
+        msg += "；%s 要装 Playwright 才能查（见 README），先跳过" % "、".join(sorted(skipped))
     return msg, ["香港关注公司·" + f for f in fails]
 
 

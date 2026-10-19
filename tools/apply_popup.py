@@ -31,6 +31,7 @@ import jdlib  # noqa: E402
 import pool  # noqa: E402
 import profile_card  # noqa: E402
 import import_list  # noqa: E402
+import jd_flags  # noqa: E402
 import panel_settings  # noqa: E402
 
 HISTORY = jdlib.HISTORY
@@ -385,7 +386,7 @@ _SEL = {}
 def _select(cfg):
     """pool.select 要 0.3~0.5 秒，面板每次弹出都要读：池子文件、config、state、方向预设都没变就用上次的结果。"""
     files = list(cfg.get("pool_path") or []) + list(cfg.get("pool_path_hk") or []) + [
-        jdlib.CFG_PATH, jdlib.STATE_PATH, jdlib.resolve("presets/商科.json")]
+        jdlib.CFG_PATH, jdlib.STATE_PATH, jdlib.resolve("presets/商科.json"), jdlib.resolve(jd_flags.CACHE)]
     key = (today_str(),) + tuple((f, os.path.getmtime(f)) for f in files if os.path.exists(f))
     if _SEL.get("key") != key:
         _SEL.update(key=key, d=pool.select(cfg, datetime.date.today()))
@@ -403,7 +404,7 @@ def state():
               for k in ("hk", "cn")}
     jobs = []
     for j in t["jobs"]:
-        j = dict(j, status=status_of(j["id"], cfg, t), cl=cl_info(j["id"], cfg),
+        j = dict(j, status=status_of(j["id"], cfg, t), cl=cl_info(j["id"], cfg), flags=jd_flags.labels(j["id"]),
                  need_cl=(j["pool"] == "hk") or (j["id"] in t.get("need_cl", [])))
         jobs.append(j)
     st = history_stats()

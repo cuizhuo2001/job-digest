@@ -1,0 +1,28 @@
+# 每次推送 / 提 PR：在 Windows、Mac、Linux 上跑核心逻辑测试（不联网、不需要界面）。
+# 面板界面测试要 Playwright，这里没装，会自动跳过；本机跑：python -m pytest -m ui
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        python: ["3.12"]
+        include:
+          - os: ubuntu-latest
+            python: "3.9"          # README 写的最低版本
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install pytest
+      - run: python -m pytest -v
+        env:
+          PYTHONUTF8: "1"
