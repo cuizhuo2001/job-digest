@@ -48,6 +48,8 @@ pythonw tools/apply_popup.py          # 起状态栏 + 面板；--nudge = 已经
 
 ## 排查
 
+- **先跑自检**：`python tools/doctor.py`，一屏列出哪项坏了、怎么修。
+
 - **没推送**：先看 `push.log` 最后几行，再用 `python tools/register_task.py --show` 看任务状态。判断「今天到底跑没跑」看 `push.log` 的修改时间，别看任务计划的 Last Run Time（那只是「尝试过」）。
 - **Telegram 报 URLError / 10060**：多半是网络不通，在 `secrets.json` 配 `telegram_proxy`。
 - **飞书报 19021**：签名不对或本机时间偏差超过 1 小时；报 19024：关键词不匹配（关键词填「投递」）。

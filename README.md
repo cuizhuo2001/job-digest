@@ -94,6 +94,7 @@ python tools/watch_hk.py --only 公司名 --dry    # 只查这一家，看能不
 python tools/watch_cn.py --only 公司名 --dry    # 大陆关注公司同理
 python tools/import_mail.py --dry               # 学校邮件：看会导入什么
 python tools/import_list.py 清单.txt            # 命令行导入一段清单（--save 才真加）
+python tools/doctor.py                          # 自检：没推送 / 面板打不开 / 池子空了，先跑这个
 ```
 
 关注公司**第一次**挂出来的岗位，简报里会单独列在「🆕 关注公司新挂出 N 个岗位」。
