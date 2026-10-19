@@ -86,7 +86,8 @@ def _clean(title):
 def hotjob(c, keywords, want=_any):
     """Hotjob 官网（wecruit.hotjob.cn/<suite>/pb/school.html）的校招列表。"""
     su = c["suite"]
-    url = "https://wecruit.hotjob.cn/wecruit/positionInfo/listPosition/%s?iSaJAx=isAjax&request_locale=zh_CN" % su
+    host = c.get("host", "wecruit.hotjob.cn")       # 有的公司用自己的域名（安永香港 eyhk.hotjob.cn、德勤 ehjobs.deloitte.com.cn）
+    url = "https://%s/wecruit/positionInfo/listPosition/%s?iSaJAx=isAjax&request_locale=zh_CN" % (host, su)
     rows, page = [], 1
     while True:
         d = http_form(url, {"pageSize": 100, "currentPage": page, "recruitType": c.get("recruit_type", 1)})
@@ -112,7 +113,7 @@ def hotjob(c, keywords, want=_any):
         typ = "实习" if INTERN.search(title) or "实习" in (r.get("projectName") or "") else "校招"
         out.append({"key": r["postId"], "title": title, "type": typ, "posted": (r.get("publishDate") or "")[:10],
                     "deadline": end, "locs": locs,
-                    "url": "https://wecruit.hotjob.cn/%s/pb/posDetail.html?postId=%s&postType=campus" % (su, r["postId"])})
+                    "url": "https://%s/%s/pb/posDetail.html?postId=%s&postType=campus" % (host, su, r["postId"])})
     return out
 
 

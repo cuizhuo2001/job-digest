@@ -11,6 +11,9 @@ job-digest · 香港「关注公司」自动查岗
     workday   *.myworkdayjobs.com
     oracle    *.oraclecloud.com（Oracle Recruiting Cloud / CandidateExperience）
     beisen    北森 *.zhiye.com
+    sfsf      SAP SuccessFactors 招聘站（网址像 /job/<标题>/<数字>/，渣打这类）
+    pageup    PageUp（careers.pageuppeople.com/<编号>/…，中银香港这类）
+    hotjob / citics   写在 watch_cn.py 里，这边也能用（安永香港是 hotjob）
 
     python tools/watch_hk.py              查一遍并写文件
     python tools/watch_hk.py --dry        只打印查到什么
@@ -151,7 +154,79 @@ def beisen(c, keywords, want=is_hk):
     return out
 
 
-SYSTEMS = {"workday": workday, "oracle": oracle, "beisen": beisen}
+def sfsf(c, keywords, want=is_hk):
+    """SAP SuccessFactors 招聘站的搜索接口（网页本身是前端渲染的，接口是公开的 JSON）。"""
+    import html as _html
+    host, locale = c["host"], c.get("locale", "en_GB")
+    api = "https://%s/services/recruiting/v1/jobs" % host
+    found = {}
+    for kw in keywords:
+        for page in range(10):
+            d = http_json(api, {"locale": locale, "pageNumber": page, "sortBy": "", "keywords": kw, "location": "",
+                                "facetFilters": {}, "brand": c.get("brand", ""), "skills": [], "categoryId": 0,
+                                "alertId": "", "rcmCandidateId": ""})
+            res = d.get("jobSearchResult") or []
+            for j in res:
+                r = j.get("response") or {}
+                found.setdefault(str(r.get("id")), r)
+            if len(res) < 10:
+                break
+    today = datetime.date.today()
+    out = []
+    for rid, r in found.items():
+        title = _html.unescape(r.get("unifiedStandardTitle") or r.get("title") or "")
+        typ = job_type(title)
+        locs = [x.strip() for x in list(r.get("jobLocationShort") or []) + list(r.get("jobLocationCountry") or [])]
+        if not typ or not want(*locs):
+            continue
+        end = ""
+        m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", r.get("unifiedStandardEnd") or "")
+        if m:
+            try:
+                dd = datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1)))   # en_GB：日/月/年
+                end = dd.isoformat() if dd >= today else ""
+            except ValueError:
+                pass
+        slug = _html.unescape(r.get("unifiedUrlTitle") or r.get("urlTitle") or "job")
+        out.append({"key": rid, "title": title, "type": typ, "posted": "", "deadline": end, "locs": locs,
+                    "url": "https://%s/job/%s/%s-%s/" % (host, slug, rid, locale)})
+    return out
+
+
+def pageup(c, keywords, want=is_hk):
+    """PageUp 招聘站：搜索结果是服务器直接出的网页。列表里没有地点和截止日，地点按 c["loc"]（默认香港）。"""
+    import html as _html
+    host = c.get("host", "careers.pageuppeople.com")
+    base = "https://%s/%s/%s/%s" % (host, c["site"], c.get("channel", "cw"), c.get("lang", "en"))
+    locs = [c.get("loc", "香港")]
+    if not want(*locs):
+        return []
+    found = {}
+    for kw in keywords:
+        req = urllib.request.Request(base + "/search/?search-keyword=" + urllib.parse.quote(kw),
+                                     headers={"User-Agent": UA["User-Agent"]})
+        with urllib.request.urlopen(req, timeout=40) as r:
+            s = r.read().decode("utf-8", "ignore")
+        for h, t in re.findall(r'<a[^>]*class="job-link"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', s, re.S):
+            m = re.search(r"/job/(\d+)/", h)
+            if m:
+                found.setdefault(m.group(1), (h, _html.unescape(re.sub("<.*?>", "", t)).strip()))
+    out = []
+    for jid, (h, title) in found.items():
+        typ = job_type(title)
+        if typ:
+            out.append({"key": jid, "title": title, "type": typ, "posted": "", "deadline": "", "locs": locs,
+                        "url": urllib.parse.urljoin("https://%s/" % host, h)})
+    return out
+
+
+SYSTEMS = {"workday": workday, "oracle": oracle, "beisen": beisen, "sfsf": sfsf, "pageup": pageup}
+
+
+def systems():
+    """hotjob / citics 写在 watch_cn.py（那边会 import 这个文件），用的时候再导，避免循环导入。"""
+    import watch_cn
+    return dict(SYSTEMS, hotjob=watch_cn.hotjob, citics=watch_cn.citics)
 
 
 # ───────────────────────── 汇总 ─────────────────────────
@@ -167,11 +242,13 @@ def run(cfg, only=None, dry=False):
     today = datetime.date.today().isoformat()
     presets = pool.all_presets(cfg)
 
+    sysmap = systems()
+
     def one(c):
-        fn = SYSTEMS.get(c.get("system"))
+        fn = sysmap.get(c.get("system"))
         if not fn:
             raise RuntimeError("不认识的招聘系统 %r" % c.get("system"))
-        return fn(c, o["keywords"])
+        return fn(c, o["keywords"], want=is_hk)
 
     rows, fails = [], []
     with cf.ThreadPoolExecutor(8) as ex:

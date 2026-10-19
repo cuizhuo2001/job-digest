@@ -17,6 +17,9 @@
   {"name": "耐克 Nike", "system": "workday", "host": "nike.wd1.myworkdayjobs.com", "tenant": "nike", "site": "nke", "industry": "零售/消费品"},
   {"name": "摩根大通 J.P. Morgan", "system": "oracle", "host": "jpmc.fa.oraclecloud.com", "site": "CX_1001", "industry": "银行"},
   {"name": "施罗德 Schroders", "system": "oracle", "host": "ekbq.fa.em2.oraclecloud.com", "site": "CX_2", "industry": "资产管理"},
-  {"name": "中信建投国际 CSCI", "system": "beisen", "host": "cscihk.zhiye.com", "industry": "证券"}
+  {"name": "中信建投国际 CSCI", "system": "beisen", "host": "cscihk.zhiye.com", "industry": "证券"},
+  {"name": "渣打 Standard Chartered", "system": "sfsf", "host": "jobs.standardchartered.com", "locale": "en_GB", "industry": "银行"},
+  {"name": "中银香港 BOCHK", "system": "pageup", "site": "798", "loc": "香港", "industry": "银行"},
+  {"name": "安永 EY 香港", "system": "hotjob", "host": "eyhk.hotjob.cn", "suite": "SU64cb4dea6202cc125d4a96f7", "industry": "会计师事务所"}
  ]
 }
