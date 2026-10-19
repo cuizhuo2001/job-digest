@@ -31,6 +31,7 @@ import jdlib  # noqa: E402
 import pool  # noqa: E402
 import profile_card  # noqa: E402
 import import_list  # noqa: E402
+import panel_settings  # noqa: E402
 
 HISTORY = jdlib.HISTORY
 TODAY = os.path.join(jdlib.ROOT, "popup_today.json")
@@ -682,6 +683,11 @@ def handle_post(path, d):
             raise ValueError("一条都没勾")
         save_links(pairs)
         return dict(state(), saved=len(pairs))
+    elif path == "/api/settings/save":
+        with LOCK:
+            return {"settings": panel_settings.save(d)}
+    elif path == "/api/settings/test":
+        return {"results": panel_settings.test([c for c in d.get("channels") or []], pool.load_config())}
     elif path == "/api/pickfile":
         return {"path": pick_file(d.get("start") or "")}
     elif path == "/api/open":
@@ -751,6 +757,8 @@ class H(BaseHTTPRequestHandler):
             self._send(io.open(page, encoding="utf-8").read(), "text/html; charset=utf-8")
         elif self.path == "/api/state" and self.headers.get("X-T") == TOKEN:
             self._send(json.dumps(state(), ensure_ascii=False))
+        elif self.path == "/api/settings" and self.headers.get("X-T") == TOKEN:
+            self._send(json.dumps(panel_settings.view(), ensure_ascii=False))
         elif self.path == "/api/bar" and self.headers.get("X-T") == TOKEN:
             self._send(json.dumps(bar_state(), ensure_ascii=False))
         else:

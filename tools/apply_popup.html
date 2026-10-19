@@ -127,6 +127,15 @@ button.addf:hover{color:var(--acc);border-color:var(--acc)}
 .banner .line{margin:8px 0 0}
 .bs{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
 button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+label.opt{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 10px;margin:0 6px 6px 0;font-size:12.5px;cursor:pointer;background:var(--chip);user-select:none}
+label.opt.on{border-color:var(--acc);background:var(--card)}
+label.opt input{margin:0}
+.chan{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px;background:var(--bg)}
+.chan.on{border-color:var(--acc)}
+.chan .fr{display:flex;align-items:center;gap:8px;margin:6px 0 0 22px;font-size:12.5px}
+.chan .fr span{width:150px;color:var(--mute);flex:none}
+.chan .fr input{flex:1}
+.chan .res{margin:6px 0 0 22px;font-size:12px}
 .jtool{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12px;color:var(--mute)}
 .jt{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
 .jt td{border-top:1px solid var(--line);padding:6px 6px;vertical-align:top}
@@ -141,18 +150,18 @@ button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .qt b{color:var(--ink);font:700 13px Georgia,serif;min-width:16px;text-align:center}
 </style></head><body>
 <div id="app">
- <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button></div><span id="cnt"></span>
+ <header class="pywebview-drag-region"><h1>今日投递</h1><div class="tabs"><button data-a="tab" data-t="jobs" id="tjobs">今日岗位</button><button data-a="tab" data-t="me" id="tme">我的资料</button><button data-a="tab" data-t="set" id="tset">设置</button></div><span id="cnt"></span>
   <span class="bs">状态栏<span class="seg" id="bstyle"></span></span>
   <button class="sm" data-a="pin" id="pinbtn" title="钉住后点别处也不收起（复制过东西会自动钉住）">钉住</button><button class="sm" data-a="hide" title="收起（Esc）">收起</button><button class="sm" data-a="quit" id="quitbtn">退出</button></header>
  <div class="bar"><i id="bar"></i></div>
- <main id="main"><div id="jobs"><div class="jtool" id="jtool"><button class="sm" data-a="jimp">＋ 导入岗位清单</button><span id="lfbtn"></span><span>学校就业中心邮件、就业网站、群里转发的，整段复制粘进来</span></div><div id="jimp"></div><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div></main>
+ <main id="main"><div id="jobs"><div class="jtool" id="jtool"><button class="sm" data-a="jimp">＋ 导入岗位清单</button><span id="lfbtn"></span><span>学校就业中心邮件、就业网站、群里转发的，整段复制粘进来</span></div><div id="jimp"></div><div id="done"></div><div class="cols" id="cols"></div><div id="sum"></div></div><div id="me"></div><div id="set" style="display:none"></div></main>
 </div>
 <div id="toast"></div>
 <script>
 const T=new URLSearchParams(location.search).get('t');
 let S=null,open=null,blockFor=null,pendReason=null,quitArmed=false;
 const LS={get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let TAB=LS.get('tab','jobs'),LANG=LS.get('lang','zh'),EDIT=null,IMP=null,PREV=null,OPENC={},IMPJ=null,LF=null;
+let TAB=LS.get('tab','jobs'),LANG=LS.get('lang','zh'),EDIT=null,IMP=null,PREV=null,OPENC={},IMPJ=null,LF=null,SETV=null,SETD=null,SETR={};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,body){
@@ -286,9 +295,10 @@ function startEdit(key,add){
  render();const el=$('#p-'+key);el&&el.scrollIntoView({block:'start'})}
 
 function render(){
- $('#tjobs').className=TAB==='jobs'?'on':'';$('#tme').className=TAB==='me'?'on':'';
- $('#jobs').style.display=TAB==='jobs'?'':'none';$('#me').style.display=TAB==='me'?'block':'none';
+ $('#tjobs').className=TAB==='jobs'?'on':'';$('#tme').className=TAB==='me'?'on':'';$('#tset').className=TAB==='set'?'on':'';
+ $('#jobs').style.display=TAB==='jobs'?'':'none';$('#me').style.display=TAB==='me'?'block':'none';$('#set').style.display=TAB==='set'?'block':'none';
  if(TAB==='me'){renderMe()}
+ if(TAB==='set'){renderSet()}
  const js=S.jobs,c={pending:0,applied:0,later:0,blocked:0};js.forEach(j=>c[j.status]++);
  const den=c.pending+c.applied;
  $('#cnt').textContent=`待投 ${c.pending} · 稍后 ${c.later} · 已投 ${c.applied} · 屏蔽 ${c.blocked}`;
@@ -329,6 +339,38 @@ function lfHTML(){
  return `<section class="part imp"><h3>AI 找到 ${it.filter(r=>r.url).length} / ${it.length} 个链接<span class="r"><button class="p sm" data-a="lfsave">保存（${n} 条）</button><button class="sm" data-a="lfback">返回</button><button class="sm" data-a="lfcancel">取消</button></span></h3>
  <div class="lab">「能打开」是真打开试过的；「没验证」是网站不让脚本打开（不一定坏），点网址自己看一眼更放心。</div>
  <table class="jt">${it.map((r,i)=>`<tr class="${r.pick?'':'off'}"><td><input type="checkbox" data-a="lfpick" data-i="${i}" ${r.pick?'checked':''} ${r.url?'':'disabled'}></td><td><b>${esc(r.company)}</b><br><span>${esc(r.title)}</span></td><td style="word-break:break-all">${r.url?`<button class="lnk" data-a="lfopen" data-i="${i}" title="在浏览器里打开看看">${esc(r.url.length>70?r.url.slice(0,70)+'…':r.url)}</button>${r.where?`<br><span>${esc(r.where)}</span>`:''}`:'—'}</td><td class="why" style="${r.status==='能打开'?'color:var(--ok)':''}">${esc(r.status||'')}</td></tr>`).join('')}</table></section>`}
+function setDraft(v){return {dirs:new Set(v.selected),cities:new Set(v.cities),other:'',chans:new Set(v.channels),sec:{},
+ mail:v.mail.enabled,senders:v.mail.senders.join('\n'),intern:v.no_intern}}
+function renderSet(){
+ const el=$('#set');
+ if(!SETV){el.innerHTML='<div class="lab">读取中…</div>';api('/api/settings').then(v=>{SETV=v;SETD=setDraft(v);renderSet()}).catch(e=>toast(e.message,true));return}
+ const v=SETV,D=SETD,opt=(a,n,on,title)=>`<label class="opt ${on?'on':''}" title="${esc(title||'')}"><input type="checkbox" data-a="${a}" data-n="${esc(n)}" ${on?'checked':''}>${esc(n)}</label>`;
+ let h=`<section class="part"><h3>想投的方向<span class="r lab" style="margin:0;font:400 12px sans-serif">没勾的方向不推；学校推荐的、自己导入的不受影响</span></h3>
+ <div>${v.presets.map(p=>opt('sdir',p.name,D.dirs.has(p.name),p.hint)).join('')}</div>
+ ${v.custom.length?`<div class="lab" style="margin-top:4px">你在 config.json 里写的自定义方向：</div><div>${v.custom.map(n=>opt('sdir',n,D.dirs.has(n),'自定义方向，规则在 config.json 里改')).join('')}</div>`:''}</section>`;
+ h+=`<section class="part"><h3>大陆岗只看这些城市<span class="r lab" style="margin:0;font:400 12px sans-serif">香港岗不受影响</span></h3>
+ <div>${v.city_choices.map(c=>opt('scity',c,D.cities.has(c))).join('')}</div>
+ <div class="line"><span class="k" style="width:auto">其他城市</span><input type="text" id="sother" value="${esc(D.other)}" placeholder="逗号隔开，比如 珠海, 东莞"></div></section>`;
+ h+=`<section class="part"><h3>推送到哪<span class="r lab" style="margin:0;font:400 12px sans-serif">可以多选，有一个发成功就算成功</span></h3>
+ ${v.channel_defs.map(c=>{const on=D.chans.has(c.key),r=SETR[c.key];
+  return `<div class="chan ${on?'on':''}">${opt('schan',c.label,on).replace('data-n="'+esc(c.label)+'"','data-n="'+c.key+'"')}<span class="lab" style="margin:0">${esc(c.help)}</span>
+  ${on?c.fields.map(f=>`<div class="fr"><span>${esc(f.label)}</span><input type="${f.secret?'password':'text'}" data-sk="${f.key}" value="${esc(D.sec[f.key]||'')}" placeholder="${f.set?(f.secret?'已填 '+esc(f.masked)+'，留空不改':'已填：'+esc(f.masked)+'，留空不改'):''}"></div>`).join('')
+   +(c.key==='telegram'&&v.cc_connect?'<div class="fr"><span></span><span class="lab" style="margin:0;width:auto">（现在借用 cc-connect 的 Telegram 配置，不填也能用）</span></div>':''):''}
+  ${r?`<div class="res" style="color:${r==='ok'?'var(--ok)':'var(--warn)'}">${r==='ok'?'✓ 测试消息已发出，去手机 / 邮箱看看':'✗ '+esc(r)}</div>`:''}</div>`}).join('')}</section>`;
+ h+=`<section class="part"><h3>学校就业中心邮件自动导入<span class="r">${opt('smail','开启',D.mail)}</span></h3>
+ <div class="lab">每天推送前看一眼 Outlook，就业中心发来的岗位邮件自动认出来加进池子。要 Windows <b>经典版</b> Outlook 登着学校邮箱；新版 Outlook / 网页邮箱用不了，就用「今日岗位 → 导入岗位清单」粘贴。</div>
+ ${D.mail?`<div class="line"><span class="k" style="width:auto">发件人</span><textarea id="ssenders" style="flex:1;min-height:52px;font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 8px" placeholder="一行一个，比如 cbcareer@cityu.edu.hk">${esc(D.senders)}</textarea></div>`:''}</section>`;
+ h+=`<section class="part"><h3>实习<span class="r">${opt('sintern','不推实习（香港、大陆都是）',D.intern)}</span></h3>
+ <div class="lab">一年制港硕毕业就要全职，一般不投实习；读两年的、想先找暑期实习的就把勾去掉。</div></section>`;
+ h+=`<div class="line" style="margin-bottom:20px"><button class="p" data-a="ssave">保存</button><button data-a="stest">保存并给勾选的渠道发测试</button><span class="lab" style="margin:0">改了方向 / 城市，明天的简报生效；今天想看就点「今日岗位」里的「再来 5 家」。改之前会备份成 config.json.bak</span></div>`;
+ el.innerHTML=h}
+function setPayload(){
+ const D=SETD,v=SETV,order=v.presets.map(p=>p.name).concat(v.custom);
+ const other=D.other.split(/[,，、\s]+/).map(s=>s.trim()).filter(Boolean);
+ return {directions:order.filter(n=>D.dirs.has(n)),cities:v.city_choices.filter(c=>D.cities.has(c)).concat(other),
+  channels:v.channel_defs.map(c=>c.key).filter(k=>D.chans.has(k)),secrets:D.sec,
+  mail:{enabled:D.mail,senders:D.senders.split('\n')},no_intern:D.intern}}
+async function setSave(){const r=await api('/api/settings/save',setPayload());SETV=r.settings;SETD=setDraft(SETV);return r}
 function nextOpen(pool){const n=S.jobs.find(j=>j.pool===pool&&j.status==='pending');open=n?n.id:null}
 async function doAct(id,act,reason,note){
  const pool=(S.jobs.find(j=>j.id===id)||{}).pool;blockFor=pendReason=null;
@@ -380,6 +422,15 @@ document.addEventListener('click',async e=>{
  case'cancel':pendReason=null;render();break;
  case'more':post('/api/more',{pool:el.dataset.pool},'补进来了');break;
  case'quota':{const k=el.dataset.pool,d=+el.dataset.d;await post('/api/quota',{pool:k,delta:d},d>0?'改成每天 '+(S.quota[k]+1)+' 家，今天多补了一家':'改成每天 '+Math.max(1,S.quota[k]-1)+' 家，明天起生效');break}
+ case'sdir':el.checked?SETD.dirs.add(el.dataset.n):SETD.dirs.delete(el.dataset.n);renderSet();break;
+ case'scity':el.checked?SETD.cities.add(el.dataset.n):SETD.cities.delete(el.dataset.n);renderSet();break;
+ case'schan':el.checked?SETD.chans.add(el.dataset.n):SETD.chans.delete(el.dataset.n);renderSet();break;
+ case'smail':SETD.mail=el.checked;renderSet();break;
+ case'sintern':SETD.intern=el.checked;renderSet();break;
+ case'ssave':try{await setSave();SETR={};renderSet();toast('已保存')}catch(e){toast(e.message,true)}break;
+ case'stest':{const ch=[...SETD.chans];if(!ch.length){toast('先勾一个推送渠道',true);break}
+  try{await setSave();toast('发测试中…');const r=await api('/api/settings/test',{channels:ch});SETR=r.results;renderSet();
+   const bad=Object.values(SETR).filter(x=>x!=='ok').length;toast(bad?bad+' 个渠道没发出去，看红字':'都发出去了，去手机 / 邮箱看看',!!bad)}catch(e){toast(e.message,true)}break}
  case'search':post('/api/open',{id,what:'search'});toast('找到官网申请页后，在地址栏复制网址，回来点「粘贴链接」');break;
  case'setlink':post('/api/link',{id},'链接已保存，以后都用这个');break;
  case'lf':LF={step:'copy',text:''};IMPJ=null;render();break;
@@ -405,7 +456,8 @@ document.addEventListener('click',async e=>{
  case'bstyle':post('/api/dock',{op:'style',style:el.dataset.s},'状态栏换成「'+el.textContent+'」');break;
  case'quit':if(quitArmed)post('/api/dock',{op:'quit'});else{quitArmed=true;el.textContent='再点一次退出'}break;
  }});
-document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value;if(e.target.id==='jimptext'&&IMPJ)IMPJ.text=e.target.value;if(e.target.id==='lftext'&&LF)LF.text=e.target.value});
+document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p&&EDIT)setPath(EDIT.data,p,e.target.value);if(e.target.id==='imptext'&&IMP)IMP.text=e.target.value;if(e.target.id==='jimptext'&&IMPJ)IMPJ.text=e.target.value;if(e.target.id==='lftext'&&LF)LF.text=e.target.value;
+ if(SETD){const sk=e.target.dataset&&e.target.dataset.sk;if(sk)SETD.sec[sk]=e.target.value;if(e.target.id==='sother')SETD.other=e.target.value;if(e.target.id==='ssenders')SETD.senders=e.target.value}});
 load().catch(e=>toast('加载失败：'+e.message,true));
 setInterval(()=>{if(!EDIT&&!IMP&&!IMPJ&&!LF)load().catch(()=>{})},300000);
 </script></body></html>
