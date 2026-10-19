@@ -1,6 +1,6 @@
 # 今日投递 · job-digest
 
-给**商科港硕**（香港 + 大陆校招一起投）的每日投递助手：每天从岗位池里挑出**今天该投的 N 家**推到手机（Telegram / 飞书）；电脑上有一个常驻的小状态栏，点开就是投递面板，帮你一家一家投完。
+给**商科港硕**（香港 + 大陆校招一起投）的每日投递助手：每天从岗位池里挑出**今天该投的 N 家**推到手机（微信 / 飞书 / Telegram / 邮件）；电脑上有一个常驻的小状态栏，点开就是投递面板，帮你一家一家投完。
 
 秋招最累的往往不是投递本身，而是每天打开电脑先花半小时想今天投哪几家、哪家快截止了、简历放哪了、上次填的英文名怎么拼。这个工具就是来省掉这半小时的。
 
@@ -193,13 +193,23 @@ UTF-8 编码（带不带 BOM 都可以），第一行是表头，列的顺序随
 在 `config.json` 里选渠道，可以选多个，有一个发成功就算成功：
 
 ```json
-"notify": {"channels": ["feishu", "telegram"]}
+"notify": {"channels": ["wechat", "email"]}
 ```
 
-`console` 表示只打印，适合调试。密钥放在**环境变量**或 **`secrets.json`**（这个文件不会进 git）里：
+| 渠道 | 推到哪 | 要填的 |
+|---|---|---|
+| `wechat` | 微信（Server酱） | `serverchan_key`：<https://sct.ftqq.com> 微信扫码登录拿 SendKey |
+| `pushplus` | 微信（PushPlus） | `pushplus_token`：<https://www.pushplus.plus> 微信扫码拿 token |
+| `email` | 你的邮箱 | `email_smtp`（如 `smtp.qq.com`）、`email_user`、`email_pass`（邮箱的**授权码**，不是登录密码）、可选 `email_to`、`email_port`（默认 465） |
+| `feishu` | 飞书群 | `feishu_webhook`、可选 `feishu_secret` |
+| `telegram` | Telegram | `telegram_token`、`telegram_chat`、可选 `telegram_proxy` |
+| `console` | 只打印 | 调试用 |
+
+密钥放在**环境变量**或 **`secrets.json`**（这个文件不会进 git）里，面板「设置」里也能直接填、发测试：
 
 ```json
 {
+ "serverchan_key": "SCT...",
  "feishu_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxx",
  "feishu_secret": "签名校验的密钥（没开签名校验就删掉这行）",
  "telegram_token": "123456:ABC...",
@@ -208,7 +218,7 @@ UTF-8 编码（带不带 BOM 都可以），第一行是表头，列的顺序随
 }
 ```
 
-对应的环境变量：`JD_FEISHU_WEBHOOK`、`JD_FEISHU_SECRET`、`JD_TELEGRAM_TOKEN`、`JD_TELEGRAM_CHAT`、`JD_TELEGRAM_PROXY`。
+对应的环境变量：`JD_SERVERCHAN_KEY`、`JD_PUSHPLUS_TOKEN`、`JD_EMAIL_SMTP` / `_PORT` / `_USER` / `_PASS` / `_TO`、`JD_FEISHU_WEBHOOK`、`JD_FEISHU_SECRET`、`JD_TELEGRAM_TOKEN`、`JD_TELEGRAM_CHAT`、`JD_TELEGRAM_PROXY`。
 
 **飞书**：自己建一个只有你的群 → 群设置 → 群机器人 → 添加机器人 → **自定义机器人**，复制 webhook 地址。安全设置建议选「签名校验」，把密钥填进 `feishu_secret`；如果选「自定义关键词」，就填 `投递`。
 

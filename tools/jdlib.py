@@ -112,6 +112,13 @@ def secrets(cfg):
         "telegram_proxy": env("JD_TELEGRAM_PROXY") or s.get("telegram_proxy") or "",
         "feishu_webhook": env("JD_FEISHU_WEBHOOK") or s.get("feishu_webhook") or "",
         "feishu_secret": env("JD_FEISHU_SECRET") or s.get("feishu_secret") or "",
+        "serverchan_key": env("JD_SERVERCHAN_KEY") or s.get("serverchan_key") or "",
+        "pushplus_token": env("JD_PUSHPLUS_TOKEN") or s.get("pushplus_token") or "",
+        "email_smtp": env("JD_EMAIL_SMTP") or s.get("email_smtp") or "",
+        "email_port": env("JD_EMAIL_PORT") or s.get("email_port") or "",
+        "email_user": env("JD_EMAIL_USER") or s.get("email_user") or "",
+        "email_pass": env("JD_EMAIL_PASS") or s.get("email_pass") or "",
+        "email_to": env("JD_EMAIL_TO") or s.get("email_to") or "",
     }
     cc = (cfg.get("notify") or {}).get("cc_connect_config")
     if cc and not out["telegram_token"]:
@@ -172,11 +179,77 @@ def _feishu(text, cfg, silent):
         raise RuntimeError("飞书回绝：%s" % res)
 
 
+# ── 推到微信：Server酱 / PushPlus（都是微信扫码拿一个 key，在内地、香港都能用）──
+SERVERCHAN_URL = "https://sctapi.ftqq.com/%s.send"
+SERVERCHAN3_URL = "https://%s.push.ft07.com/send/%s.send"     # Server酱³ 的 key 长这样：sctp123t…
+PUSHPLUS_URL = "https://www.pushplus.plus/send"
+
+
+def _title(text):
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "今日投递")
+    return first[:32]
+
+
+def _serverchan(text, cfg, silent):
+    key = secrets(cfg)["serverchan_key"]
+    if not key:
+        raise RuntimeError("没配 Server酱：去 sct.ftqq.com 微信扫码登录，复制 SendKey 写进 secrets.json 的 serverchan_key")
+    import re
+    m = re.match(r"sctp(\d+)t", key)
+    url = SERVERCHAN3_URL % (m.group(1), key) if m else SERVERCHAN_URL % key
+    # desp 是 Markdown：行尾两个空格 = 换行
+    body = urllib.parse.urlencode({"title": _title(text), "desp": "  \n".join(text.splitlines())}).encode("utf-8")
+    res = _open(urllib.request.Request(url, data=body))
+    if res.get("code") not in (0, "0"):
+        raise RuntimeError("Server酱回绝：%s" % res)
+
+
+def _pushplus(text, cfg, silent):
+    token = secrets(cfg)["pushplus_token"]
+    if not token:
+        raise RuntimeError("没配 PushPlus：去 pushplus.plus 微信扫码登录，复制 token 写进 secrets.json 的 pushplus_token")
+    body = {"token": token, "title": _title(text), "content": text, "template": "txt"}
+    req = urllib.request.Request(PUSHPLUS_URL, data=json.dumps(body).encode("utf-8"),
+                                 headers={"Content-Type": "application/json; charset=utf-8"})
+    res = _open(req)
+    if res.get("code") != 200:
+        raise RuntimeError("PushPlus 回绝：%s" % res)
+
+
+def _email(text, cfg, silent):
+    """发邮件给自己（QQ / 163 / Gmail 都行，密码填邮箱的「授权码」，不是登录密码）。"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.header import Header
+    s = secrets(cfg)
+    if not (s["email_smtp"] and s["email_user"] and s["email_pass"]):
+        raise RuntimeError("没配邮件：secrets.json 里填 email_smtp（如 smtp.qq.com）、email_user、email_pass（授权码）")
+    msg = MIMEText(text, "plain", "utf-8")
+    msg["Subject"] = Header(_title(text), "utf-8")
+    msg["From"] = s["email_user"]
+    msg["To"] = s["email_to"] or s["email_user"]
+    port = int(s["email_port"] or 465)
+    if port == 465:
+        conn = smtplib.SMTP_SSL(s["email_smtp"], port, timeout=30)
+    else:
+        conn = smtplib.SMTP(s["email_smtp"], port, timeout=30)
+        conn.starttls()
+    try:
+        conn.login(s["email_user"], s["email_pass"])
+        conn.sendmail(s["email_user"], [msg["To"]], msg.as_string())
+    finally:
+        try:
+            conn.quit()
+        except Exception:
+            pass
+
+
 def _console(text, cfg, silent):
     print("\n" + "=" * 56 + "\n" + text + "\n" + "=" * 56)
 
 
-CHANNELS = {"telegram": _telegram, "feishu": _feishu, "console": _console}
+CHANNELS = {"wechat": _serverchan, "serverchan": _serverchan, "pushplus": _pushplus, "email": _email,
+            "telegram": _telegram, "feishu": _feishu, "console": _console}
 
 
 def notify(text, cfg, silent=False, dry=False):

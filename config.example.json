@@ -47,7 +47,7 @@
  "_reminders说明": "池子里查不到、只有你知道的事。date 前 lead_days 天内每天在简报里提一次",
 
  "notify": {"channels": ["console"]},
- "_notify说明": "推送渠道，可多选：telegram / feishu / console（只打印）。密钥放环境变量或 secrets.json，见 README",
+ "_notify说明": "推送渠道，可多选：wechat（Server酱推到微信）/ pushplus（也是推到微信）/ email（发邮件给自己）/ feishu / telegram / console（只打印）。密钥放环境变量或 secrets.json，见 README。面板「设置」里可以直接填、点一下发测试",
 
  "schedule": {"push": "10:00", "nudge": ["10:40", "16:00"]},
  "_schedule说明": "tools/register_task.py 用：每天几点推简报、几点把面板弹出来提醒。改完重跑一次注册脚本",
