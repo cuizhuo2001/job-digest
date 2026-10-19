@@ -42,7 +42,11 @@ def opts(cfg):
     return o
 
 
-def outlook_inbox():
+class OutlookClosed(Exception):
+    pass
+
+
+def outlook_inbox(launch=False):
     import pythoncom
     import win32com.client
     pythoncom.CoInitialize()
@@ -50,6 +54,8 @@ def outlook_inbox():
         app = win32com.client.GetActiveObject("Outlook.Application")
         launched = False
     except Exception:
+        if not launch:
+            raise OutlookClosed()
         app = win32com.client.Dispatch("Outlook.Application")        # 没开就拉起来（十几秒）
         launched = True
     inbox = app.GetNamespace("MAPI").GetDefaultFolder(6)
@@ -101,7 +107,12 @@ def run(cfg, dry=False):
     st = jdlib.load_json(state_path, {"done": {}})
     today = datetime.date.today()
     total, mails, problems = [], 0, []
-    for msg, rt in recent_mails(outlook_inbox(), int(o["days"])):
+    try:
+        inbox = outlook_inbox(launch=bool(o.get("launch_outlook")))
+    except OutlookClosed:
+        # 不更新 mail_import.json → 下次（面板后台每 10 分钟看一眼 / 下次推送）Outlook 开着时再导
+        return "学校邮件：Outlook 没开，下次开着时再导（想让它自己打开 Outlook，设 sources.mail_import.launch_outlook: true）", []
+    for msg, rt in recent_mails(inbox, int(o["days"])):
         try:
             eid, subj = msg.EntryID, msg.Subject or ""
         except Exception:

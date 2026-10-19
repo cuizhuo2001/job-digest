@@ -99,8 +99,9 @@ def load_today():
 
 
 def refill(t, cfg, key, n=1, repl_for=None):
-    """从 key 池按排序补 n 家（不重复今天已有的）；返回实际补了几家。"""
-    part = pool.select(cfg, datetime.date.today()).get(key)
+    """从 key 池按排序补 n 家（不重复今天已有的）；返回实际补了几家。
+    用缓存的排序结果：动作刚改完 state.json，这里算一次，紧接着的 state() 就直接复用（以前一次点击要算两遍）"""
+    part = _select(pool.load_config()).get(key)
     if not part:
         return 0
     have = set(j["id"] for j in t["jobs"])
@@ -234,8 +235,17 @@ def check_today():
 
 
 def link_watch():
+    """后台每 10 分钟：①数据源该刷新了就先刷（早上 10 点推送就不用现场等两分钟）②探今天名单的链接。"""
+    import refresh
     time.sleep(20)                      # 开机等网络起来
     while True:
+        try:
+            cfg = pool.load_config()
+            if refresh.due_any(cfg):
+                refresh.refresh(cfg)
+                WIN.refresh_bar()
+        except Exception as e:
+            jdlib.log("面板后台刷新出错：%s: %s" % (type(e).__name__, e))
         try:
             if check_today():
                 WIN.refresh_bar()
@@ -415,7 +425,7 @@ def fresh_count():
     now = time.time()
     if _FRESH.get("date") == today_str() and now - _FRESH.get("at", 0) < 1800:
         return _FRESH["n"]
-    d = pool.select(pool.load_config(), datetime.date.today())
+    d = _select(pool.load_config())
     n = sum(1 for k in ("hk", "cn") if d.get(k) for r in d[k]["alive_rows"]
             if r.get("first_seen") == today_str() and str(r.get("id", "")).startswith(("w-", "s-")))
     _FRESH.update(date=today_str(), at=now, n=n)

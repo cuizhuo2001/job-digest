@@ -38,8 +38,51 @@ def due(path, hours):
 DEFAULT_ON = ("hk_watch", "cn_watch")
 
 
+LOCK_FILE = "data/.refreshing"
+
+
+def _lock():
+    """别的进程正在刷新（锁文件 15 分钟内）→ None；否则建锁返回路径。"""
+    p = jdlib.resolve(LOCK_FILE)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    try:
+        if time.time() - os.path.getmtime(p) < 900:
+            return None
+        os.remove(p)                                   # 上次没删掉的旧锁（进程被杀之类）
+    except OSError:
+        pass
+    try:
+        os.close(os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        return p
+    except OSError:
+        return None
+
+
+def due_any(cfg):
+    """有没有哪个数据源该刷新了（面板后台用：有才动手）。"""
+    src = cfg.get("sources") or {}
+    hours = float(src.get("refresh_hours", 20))
+    return any((src.get(k) or {}).get("enabled", k in DEFAULT_ON)
+               and due(jdlib.resolve((src.get(k) or {}).get("out") or mod.DEFAULT_OUT), hours)
+               for k, _, mod in SOURCES)
+
+
 def refresh(cfg, force=False):
     """→ (成功说明列表, 失败说明列表)"""
+    lock = _lock()
+    if not lock:
+        jdlib.log("  ↻ 别处正在刷新数据源，这次直接用现有数据")
+        return [], []
+    try:
+        return _refresh(cfg, force)
+    finally:
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
+
+
+def _refresh(cfg, force=False):
     src = cfg.get("sources") or {}
     hours = float(src.get("refresh_hours", 20))
     notes, errors = [], []

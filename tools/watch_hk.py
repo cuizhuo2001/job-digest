@@ -76,30 +76,41 @@ def job_type(title):
 
 def workday(c, keywords, want=is_hk):
     base = "https://%s/wday/cxs/%s/%s" % (c["host"], c["tenant"], c["site"])
-    found = {}
-    for kw in keywords:
+
+    def search(kw):
+        got = []
         for offset in range(0, 100, 20):
             d = http_json(base + "/jobs", {"limit": 20, "offset": offset, "searchText": kw, "appliedFacets": {}})
             posts = d.get("jobPostings") or []
-            for p in posts:
-                found.setdefault(p["externalPath"], p)
+            got += posts
             if len(posts) < 20:
                 break
-    out = []
-    for path, p in found.items():
-        title = p.get("title") or ""
-        typ = job_type(title)
-        if not typ:
-            continue
+        return got
+
+    found = {}
+    # 几个关键词一起查（一个接一个的话，大公司要 40~50 秒）
+    with cf.ThreadPoolExecutor(4) as ex:
+        for posts in ex.map(search, keywords):
+            for p in posts:
+                found.setdefault(p["externalPath"], p)
+    cand = [(path, p) for path, p in found.items() if job_type(p.get("title") or "")]
+
+    def locs_of(item):
+        path, p = item
         loc = p.get("locationsText") or ""
         if re.match(r"\d+ Locations?$", loc):            # 多地点：要再查一次详情才知道有没有香港
             info = http_json(base + path).get("jobPostingInfo") or {}
-            locs = [info.get("location")] + list(info.get("additionalLocations") or [])
-        else:
-            locs = [loc]
+            return [info.get("location")] + list(info.get("additionalLocations") or [])
+        return [loc]
+
+    with cf.ThreadPoolExecutor(4) as ex:
+        all_locs = list(ex.map(locs_of, cand))
+    out = []
+    for (path, p), locs in zip(cand, all_locs):
         if not want(*locs):
             continue
-        out.append({"key": path, "title": title, "type": typ, "posted": p.get("postedOn") or "", "locs": locs,
+        title = p.get("title") or ""
+        out.append({"key": path, "title": title, "type": job_type(title), "posted": p.get("postedOn") or "", "locs": locs,
                     "url": "https://%s/%s%s" % (c["host"], c["site"], path)})
     return out
 
@@ -162,7 +173,8 @@ def sfsf(c, keywords, want=is_hk):
     found = {}
     for kw in keywords:
         for page in range(10):
-            d = http_json(api, {"locale": locale, "pageNumber": page, "sortBy": "", "keywords": kw, "location": "",
+            d = http_json(api, {"locale": locale, "pageNumber": page, "sortBy": "", "keywords": kw,
+                                "location": c.get("location", ""),
                                 "facetFilters": {}, "brand": c.get("brand", ""), "skills": [], "categoryId": 0,
                                 "alertId": "", "rcmCandidateId": ""})
             res = d.get("jobSearchResult") or []
