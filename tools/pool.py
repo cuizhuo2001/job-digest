@@ -23,6 +23,12 @@ HERE = jdlib.HERE
 ROOT = jdlib.ROOT
 
 
+# 后来加的数据来源生成的文件：config.json 里没列也照样读——老用户 git pull 之后不用改配置就能用上。
+# (文件, 插在最前 / 放最后)。前面的优先：官网直查的直链排在岗位库前面。想完全按 config 来就设 "auto_pool_files": false
+AUTO_FILES = {"pool_path": [("data/cn_watch.csv", True), ("data/school_cn.csv", False)],
+              "pool_path_hk": [("data/cn_watch_hk.csv", False), ("data/school_hk.csv", False)]}
+
+
 def load_config(path=None):
     """规则（config.json）+ 运行状态（state.json）合并成一个 dict 给下游用。
     ⚠️ 只读：别把它整个存回 config.json，状态要写回用 jdlib.save_state()。"""
@@ -31,6 +37,12 @@ def load_config(path=None):
     for k in ("pool_path", "pool_path_hk"):
         if cfg.get(k):
             cfg[k] = [jdlib.resolve(x) for x in pool_files(cfg[k])]
+            if cfg.get("auto_pool_files", True):
+                have = set(os.path.normcase(x) for x in cfg[k])
+                for f, first in AUTO_FILES[k]:
+                    p = jdlib.resolve(f)
+                    if os.path.exists(p) and os.path.normcase(p) not in have:
+                        cfg[k].insert(0, p) if first else cfg[k].append(p)
     if cfg.get("out_md"):
         cfg["out_md"] = jdlib.resolve(cfg["out_md"])
     st = jdlib.load_state()

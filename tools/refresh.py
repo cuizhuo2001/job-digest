@@ -34,6 +34,10 @@ def due(path, hours):
     return not os.path.exists(path) or time.time() - os.path.getmtime(path) > hours * 3600
 
 
+# config.json 里没写的来源：这两个默认开（老用户更新代码后自动生效）；学校邮件要 Outlook，得自己开
+DEFAULT_ON = ("hk_watch", "cn_watch")
+
+
 def refresh(cfg, force=False):
     """→ (成功说明列表, 失败说明列表)"""
     src = cfg.get("sources") or {}
@@ -41,7 +45,7 @@ def refresh(cfg, force=False):
     notes, errors = [], []
     for key, label, mod in SOURCES:
         o = src.get(key) or {}
-        if not o.get("enabled"):
+        if not o.get("enabled", key in DEFAULT_ON):
             continue
         out = jdlib.resolve(o.get("out") or mod.DEFAULT_OUT)
         if not force and not due(out, hours):
