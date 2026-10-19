@@ -167,8 +167,12 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 async function api(path,body){
  const r=await fetch(path,{method:body?'POST':'GET',headers:{'X-T':T},body:body?JSON.stringify(body):undefined});
  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
-async function load(){S=await api('/api/state');render()}
-window.onShow=()=>{if(!EDIT&&!IMP&&!IMPJ&&!LF)load().catch(()=>{})};
+// 数据没变就不重画（整页重画 = 弹出来之后又跳一下）
+let LASTJ='',LASTT=0;
+async function load(){const r=await fetch('/api/state',{headers:{'X-T':T}});const t=await r.text();if(!r.ok)throw new Error('HTTP '+r.status);
+ LASTT=Date.now();if(t===LASTJ&&S)return;LASTJ=t;S=JSON.parse(t);render()}
+// 弹出时：刚读过（30 秒内）就不读；要读也等窗口先出来再读
+window.onShow=()=>{if(!EDIT&&!IMP&&!IMPJ&&!LF&&Date.now()-LASTT>30000)setTimeout(()=>load().catch(()=>{}),150)};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.target.matches('input,textarea'))post('/api/dock',{op:'hide'})});
 let tt;function toast(m,err){const t=$('#toast');t.textContent=m;t.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='',err?4000:1600)}
 async function post(path,body,msg){try{const d=await api(path,body);if(d&&d.jobs){S=d;render()}

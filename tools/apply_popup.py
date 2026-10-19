@@ -369,11 +369,24 @@ def cl_info(jid, cfg):
             "pdf": os.path.exists(os.path.join(d, base + ".pdf"))}
 
 
+_SEL = {}
+
+
+def _select(cfg):
+    """pool.select 要 0.3~0.5 秒，面板每次弹出都要读：池子文件、config、state、方向预设都没变就用上次的结果。"""
+    files = list(cfg.get("pool_path") or []) + list(cfg.get("pool_path_hk") or []) + [
+        jdlib.CFG_PATH, jdlib.STATE_PATH, jdlib.resolve("presets/商科.json")]
+    key = (today_str(),) + tuple((f, os.path.getmtime(f)) for f in files if os.path.exists(f))
+    if _SEL.get("key") != key:
+        _SEL.update(key=key, d=pool.select(cfg, datetime.date.today()))
+    return _SEL["d"]
+
+
 def state():
     with LOCK:
         cfg = pool.load_config()
         t = load_today()
-        d = pool.select(cfg, datetime.date.today())
+        d = _select(cfg)
     have = set(j["id"] for j in t["jobs"])
     nolink = nolink_jobs(d)
     remain = {k: (len([r for r in d[k]["ranked"] if str(r.get("id")) not in have]) if d.get(k) else 0)
@@ -1102,6 +1115,11 @@ def main():
         return 0
     _ = mutex
 
+    # WebView2 默认会把「被挡住 / 藏起来」的窗口降频、暂停渲染，面板一弹出来要先补画一帧，看着就卡一下。
+    # 面板本来就常驻，关掉这个省电策略（环境变量会盖过 pywebview 自己传的参数，所以它那条也一起带上）
+    os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                          "--disable-features=ElasticOverscroll,CalculateNativeWinOcclusion "
+                          "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding")
     import webview
     srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
     port = srv.server_address[1]
